@@ -1,0 +1,2329 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#8a4a2d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="家計簿">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+  <title>家計簿アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f1e8;
+      --panel: rgba(255, 252, 247, 0.9);
+      --panel-strong: rgba(255, 255, 255, 0.86);
+      --line: rgba(66, 49, 32, 0.12);
+      --text: #2c241b;
+      --muted: #746658;
+      --income: #2d7c4b;
+      --income-soft: rgba(45, 124, 75, 0.12);
+      --expense: #b4552d;
+      --expense-soft: rgba(180, 85, 45, 0.12);
+      --accent: #8a4a2d;
+      --danger: #a13232;
+      --shadow: 0 24px 64px rgba(75, 55, 31, 0.12);
+      --radius: 24px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Avenir Next", "Hiragino Sans", "Noto Sans JP", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(246, 204, 112, 0.28), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(124, 169, 114, 0.18), transparent 26%),
+        linear-gradient(160deg, #f9f5ed 0%, #f0e8db 54%, #f8f2e8 100%);
+      padding: 28px 16px 44px;
+    }
+
+    .app {
+      max-width: 1240px;
+      margin: 0 auto;
+    }
+
+    .hero {
+      margin-bottom: 22px;
+      padding: 28px;
+      border-radius: 30px;
+      background: linear-gradient(135deg, rgba(255, 249, 239, 0.96), rgba(241, 232, 213, 0.92));
+      border: 1px solid rgba(66, 49, 32, 0.08);
+      box-shadow: var(--shadow);
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.72);
+      color: var(--muted);
+      font-size: 0.88rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+
+    h1 {
+      margin: 16px 0 10px;
+      font-size: clamp(2rem, 5vw, 3.25rem);
+      line-height: 1.05;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 720px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .hero-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      margin-top: 18px;
+      flex-wrap: wrap;
+    }
+
+    .install-card {
+      display: grid;
+      gap: 6px;
+      padding: 16px 18px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid rgba(66, 49, 32, 0.08);
+    }
+
+    .install-card strong {
+      font-size: 0.96rem;
+    }
+
+    .install-note {
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(320px, 400px) minmax(0, 1fr);
+      gap: 20px;
+      align-items: start;
+    }
+
+    .panel {
+      padding: 24px;
+      border-radius: var(--radius);
+      background: var(--panel);
+      border: 1px solid rgba(66, 49, 32, 0.08);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+    }
+
+    .sidebar {
+      display: grid;
+      gap: 18px;
+    }
+
+    .panel h2,
+    .section-card h3 {
+      margin: 0 0 8px;
+      font-size: 1.15rem;
+    }
+
+    .panel-copy,
+    .section-copy {
+      margin: 0 0 16px;
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 0.94rem;
+    }
+
+    .section-card {
+      padding: 18px;
+      border-radius: 22px;
+      background: var(--panel-strong);
+      border: 1px solid rgba(66, 49, 32, 0.08);
+    }
+
+    .status {
+      display: none;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: var(--income-soft);
+      color: var(--income);
+      font-weight: 700;
+    }
+
+    .status.is-active {
+      display: block;
+    }
+
+    form {
+      display: grid;
+      gap: 14px;
+    }
+
+    .grid-2,
+    .grid-3 {
+      display: grid;
+      gap: 14px;
+    }
+
+    .grid-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    label {
+      display: grid;
+      gap: 8px;
+      font-size: 0.92rem;
+      font-weight: 700;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      padding: 13px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.84);
+      color: var(--text);
+      font: inherit;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      outline: none;
+      border-color: rgba(138, 74, 45, 0.42);
+      box-shadow: 0 0 0 4px rgba(138, 74, 45, 0.1);
+      transform: translateY(-1px);
+    }
+
+    textarea {
+      min-height: 110px;
+      resize: vertical;
+    }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 16px;
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 0.18s ease, opacity 0.18s ease;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .actions,
+    .toolbar-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .primary {
+      color: #fff;
+      background: linear-gradient(135deg, #b4552d, #874226);
+      box-shadow: 0 12px 28px rgba(135, 66, 38, 0.2);
+    }
+
+    .secondary {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid var(--line);
+    }
+
+    .danger {
+      color: #fff;
+      background: linear-gradient(135deg, #cb4a4a, #972e2e);
+    }
+
+    .small-button {
+      padding: 9px 12px;
+      font-size: 0.86rem;
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.88);
+      border: 1px solid var(--line);
+    }
+
+    .subtle-button {
+      padding: 9px 12px;
+      font-size: 0.86rem;
+      color: #fff;
+      background: linear-gradient(135deg, #46744f, #2d5b36);
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .summary-card {
+      padding: 18px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.82);
+      border: 1px solid rgba(66, 49, 32, 0.08);
+    }
+
+    .summary-label {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--muted);
+      font-size: 0.84rem;
+    }
+
+    .summary-value {
+      font-size: clamp(1.28rem, 3vw, 1.85rem);
+      font-weight: 900;
+      letter-spacing: -0.03em;
+    }
+
+    .summary-card[data-tone="income"] .summary-value {
+      color: var(--income);
+    }
+
+    .summary-card[data-tone="expense"] .summary-value {
+      color: var(--expense);
+    }
+
+    .summary-card[data-tone="count"] .summary-value {
+      color: var(--accent);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 9px 12px;
+      border-radius: 999px;
+      background: var(--expense-soft);
+      color: #874226;
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+
+    .filter-grid,
+    .budget-progress-grid,
+    .monthly-grid,
+    .category-grid,
+    .chart-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .filter-grid {
+      grid-template-columns: minmax(0, 1.2fr) repeat(3, minmax(0, 1fr));
+      margin-bottom: 18px;
+    }
+
+    .budget-progress-grid,
+    .monthly-grid,
+    .category-grid,
+    .chart-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .budget-card,
+    .monthly-card,
+    .category-card,
+    .chart-card,
+    .template-card,
+    .budget-setting-card {
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.86);
+      border: 1px solid rgba(66, 49, 32, 0.08);
+    }
+
+    .budget-card h4,
+    .monthly-card h4,
+    .category-card h4,
+    .chart-card h4,
+    .template-card h4,
+    .budget-setting-card h4 {
+      margin: 0 0 10px;
+      font-size: 1rem;
+    }
+
+    .meta-row,
+    .stat-row,
+    .template-meta,
+    .budget-setting-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    .highlight {
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .highlight.income {
+      color: var(--income);
+    }
+
+    .highlight.expense {
+      color: var(--expense);
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 10px;
+      margin: 12px 0 8px;
+      border-radius: 999px;
+      background: rgba(66, 49, 32, 0.08);
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: inherit;
+    }
+
+    .progress-fill.income {
+      background: linear-gradient(90deg, #73b081, var(--income));
+    }
+
+    .progress-fill.expense {
+      background: linear-gradient(90deg, #f1a57d, var(--expense));
+    }
+
+    .template-list,
+    .budget-list,
+    .bar-list,
+    .list-stack {
+      display: grid;
+      gap: 10px;
+    }
+
+    .bar-item {
+      display: grid;
+      gap: 6px;
+    }
+
+    .bar-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      font-size: 0.9rem;
+    }
+
+    .bar-row strong {
+      font-weight: 800;
+    }
+
+    .bar-track {
+      width: 100%;
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(66, 49, 32, 0.08);
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: inherit;
+    }
+
+    .bar-fill.income {
+      background: linear-gradient(90deg, #79b487, var(--income));
+    }
+
+    .bar-fill.expense {
+      background: linear-gradient(90deg, #f0a17a, var(--expense));
+    }
+
+    .template-actions,
+    .budget-setting-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      min-width: 920px;
+      border-collapse: collapse;
+      background: rgba(255, 255, 255, 0.8);
+      border-radius: 18px;
+      overflow: hidden;
+    }
+
+    th,
+    td {
+      padding: 14px 12px;
+      text-align: left;
+      border-bottom: 1px solid rgba(66, 49, 32, 0.08);
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--muted);
+      font-size: 0.84rem;
+      background: rgba(243, 236, 224, 0.86);
+      white-space: nowrap;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    tbody tr:hover {
+      background: rgba(138, 74, 45, 0.04);
+    }
+
+    .type-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 7px 11px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .type-chip.income {
+      background: var(--income-soft);
+      color: var(--income);
+    }
+
+    .type-chip.expense {
+      background: var(--expense-soft);
+      color: var(--expense);
+    }
+
+    .amount-income {
+      color: var(--income);
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .amount-expense {
+      color: var(--expense);
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .memo-preview {
+      min-width: 170px;
+      line-height: 1.6;
+      color: var(--muted);
+    }
+
+    .memo-preview.is-empty {
+      font-style: italic;
+    }
+
+    .table-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .empty {
+      padding: 24px 18px;
+      border-radius: 18px;
+      text-align: center;
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.56);
+      border: 1px dashed rgba(66, 49, 32, 0.18);
+    }
+
+    .undo-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(161, 50, 50, 0.08);
+      border: 1px solid rgba(161, 50, 50, 0.16);
+    }
+
+    .undo-copy {
+      font-weight: 700;
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: rgba(30, 24, 18, 0.48);
+      z-index: 50;
+    }
+
+    .modal[hidden] {
+      display: none;
+    }
+
+    .modal-card {
+      width: min(620px, 100%);
+      max-height: min(82vh, 760px);
+      overflow: auto;
+      padding: 24px;
+      border-radius: 24px;
+      background: rgba(255, 252, 247, 0.98);
+      border: 1px solid rgba(66, 49, 32, 0.12);
+      box-shadow: 0 30px 80px rgba(18, 14, 11, 0.22);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .modal-meta {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .modal-body {
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(243, 236, 224, 0.66);
+      line-height: 1.7;
+      white-space: pre-wrap;
+    }
+
+    @media (max-width: 980px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .summary,
+      .budget-progress-grid,
+      .monthly-grid,
+      .category-grid,
+      .chart-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .filter-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 20px 12px 36px;
+      }
+
+      .hero,
+      .panel {
+        padding: 20px;
+        border-radius: 22px;
+      }
+
+      .grid-2,
+      .grid-3,
+      .filter-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .toolbar-actions,
+      .actions,
+      .template-actions,
+      .budget-setting-actions {
+        width: 100%;
+      }
+
+      .toolbar-actions > *,
+      .actions > *,
+      .template-actions > *,
+      .budget-setting-actions > * {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .hero-actions > * {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="hero">
+      <span class="eyebrow">Household Budget</span>
+      <h1>実用版 家計簿アプリ</h1>
+      <p>収入と支出の記録に加えて、月フィルター、編集、固定費テンプレート、予算管理、CSV入出力、グラフ、削除の元に戻すまでをまとめたHTML版の家計簿です。</p>
+      <div class="hero-actions">
+        <div class="install-card">
+          <strong>アプリとして使えます</strong>
+          <span id="installHint" class="install-note">この画面をブラウザで開いたあと、ホーム画面やDockへ追加するとアプリのように使えます。</span>
+        </div>
+        <button type="button" id="installAppButton" class="primary" hidden>アプリをインストール</button>
+      </div>
+    </section>
+
+    <main class="layout">
+      <section class="sidebar">
+        <section class="panel">
+          <h2>記録を入力</h2>
+          <p class="panel-copy">日付、収入/支出、カテゴリ、金額、メモを入力してください。</p>
+          <div id="status" class="status" aria-live="polite"></div>
+
+          <form id="entryForm">
+            <div class="grid-2">
+              <label>
+                日付
+                <input id="date" type="date" required>
+              </label>
+
+              <label>
+                種別
+                <select id="type" required>
+                  <option value="expense">支出</option>
+                  <option value="income">収入</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="grid-2">
+              <label>
+                カテゴリ
+                <select id="category" required></select>
+              </label>
+
+              <label>
+                金額
+                <input id="amount" type="number" min="1" step="1" placeholder="例: 1200" required>
+              </label>
+            </div>
+
+            <label>
+              メモ
+              <textarea id="memo" placeholder="例: スーパーで食材を購入"></textarea>
+            </label>
+
+            <div class="actions">
+              <button type="submit" id="submitButton" class="primary">記録を追加</button>
+              <button type="button" id="cancelEditButton" class="secondary" hidden>編集をやめる</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="panel">
+          <h2>固定費テンプレート</h2>
+          <p class="panel-copy">毎月発生する支出や収入をテンプレート化して、選んだ月へまとめて追加できます。</p>
+
+          <form id="templateForm">
+            <div class="grid-2">
+              <label>
+                テンプレート名
+                <input id="templateName" type="text" placeholder="例: 家賃" required>
+              </label>
+
+              <label>
+                種別
+                <select id="templateType" required>
+                  <option value="expense">支出</option>
+                  <option value="income">収入</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="grid-3">
+              <label>
+                カテゴリ
+                <select id="templateCategory" required></select>
+              </label>
+
+              <label>
+                金額
+                <input id="templateAmount" type="number" min="1" step="1" placeholder="例: 70000" required>
+              </label>
+
+              <label>
+                日付
+                <input id="templateDay" type="number" min="1" max="31" placeholder="例: 25" required>
+              </label>
+            </div>
+
+            <label>
+              メモ
+              <input id="templateMemo" type="text" placeholder="例: 毎月の家賃">
+            </label>
+
+            <div class="actions">
+              <button type="submit" class="primary">テンプレートを追加</button>
+            </div>
+          </form>
+
+          <div class="section-card" style="margin-top: 18px;">
+            <h3>テンプレートを使う月</h3>
+            <p class="section-copy">ここで選んだ月にテンプレートを追加します。</p>
+            <div class="grid-2">
+              <label>
+                対象月
+                <input id="templateMonth" type="month">
+              </label>
+
+              <div class="actions" style="align-items: end;">
+                <button type="button" id="addAllTemplatesButton" class="subtle-button">対象月にすべて追加</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="templateList" class="template-list" style="margin-top: 18px;"></div>
+        </section>
+
+        <section class="panel">
+          <h2>予算設定</h2>
+          <p class="panel-copy">カテゴリごとの月予算を設定できます。月フィルターの月を優先して進捗を表示します。</p>
+
+          <form id="budgetForm">
+            <div class="grid-3">
+              <label>
+                種別
+                <select id="budgetType" required>
+                  <option value="expense">支出</option>
+                  <option value="income">収入</option>
+                </select>
+              </label>
+
+              <label>
+                カテゴリ
+                <select id="budgetCategory" required></select>
+              </label>
+
+              <label>
+                予算額
+                <input id="budgetAmount" type="number" min="1" step="1" placeholder="例: 30000" required>
+              </label>
+            </div>
+
+            <div class="actions">
+              <button type="submit" class="primary">予算を保存</button>
+            </div>
+          </form>
+
+          <div id="budgetList" class="budget-list" style="margin-top: 18px;"></div>
+        </section>
+
+        <section class="panel">
+          <h2>CSVバックアップ</h2>
+          <p class="panel-copy">記録のCSV書き出しと読み込みができます。読み込みは追加か置き換えを選べます。</p>
+
+          <div class="list-stack">
+            <button type="button" id="exportCsvButton" class="secondary">CSVを書き出す</button>
+            <label>
+              読み込み方法
+              <select id="importMode">
+                <option value="append">現在の記録に追加</option>
+                <option value="replace">現在の記録を置き換え</option>
+              </select>
+            </label>
+            <label>
+              CSVファイル
+              <input id="importCsvInput" type="file" accept=".csv,text/csv">
+            </label>
+          </div>
+        </section>
+      </section>
+
+      <section class="panel">
+        <div class="summary" aria-label="表示中の集計">
+          <article class="summary-card" data-tone="income">
+            <span class="summary-label">表示中の収入合計</span>
+            <span id="incomeTotal" class="summary-value">¥0</span>
+          </article>
+          <article class="summary-card" data-tone="expense">
+            <span class="summary-label">表示中の支出合計</span>
+            <span id="expenseTotal" class="summary-value">¥0</span>
+          </article>
+          <article class="summary-card">
+            <span class="summary-label">表示中の残高</span>
+            <span id="balanceTotal" class="summary-value">¥0</span>
+          </article>
+          <article class="summary-card" data-tone="count">
+            <span class="summary-label">表示件数</span>
+            <span id="entryCount" class="summary-value">0件</span>
+          </article>
+        </div>
+
+        <section class="section-card">
+          <h3>検索と絞り込み</h3>
+          <p class="section-copy">月、種別、カテゴリ、キーワードで絞り込めます。</p>
+          <div class="filter-grid">
+            <label>
+              月
+              <input id="monthFilter" type="month">
+            </label>
+            <label>
+              種別
+              <select id="typeFilter">
+                <option value="all">すべて</option>
+                <option value="income">収入</option>
+                <option value="expense">支出</option>
+              </select>
+            </label>
+            <label>
+              カテゴリ
+              <select id="categoryFilter">
+                <option value="all">すべて</option>
+              </select>
+            </label>
+            <label>
+              検索
+              <input id="searchInput" type="search" placeholder="カテゴリ・メモで検索">
+            </label>
+          </div>
+          <div class="actions">
+            <button type="button" id="resetFiltersButton" class="secondary">絞り込みをリセット</button>
+          </div>
+        </section>
+
+        <section class="section-card">
+          <h3>予算の進捗</h3>
+          <p id="budgetProgressCopy" class="section-copy">対象月の予算と実績です。</p>
+          <div id="budgetProgress" class="budget-progress-grid"></div>
+        </section>
+
+        <section class="section-card">
+          <h3>月別集計と繰越残高</h3>
+          <p class="section-copy">全期間の月ごとの収入、支出、月初残高、月末残高を表示します。</p>
+          <div id="monthlySummary" class="monthly-grid"></div>
+        </section>
+
+        <section class="section-card">
+          <h3>カテゴリ別集計</h3>
+          <p class="section-copy">現在の絞り込み条件に合う収入と支出をカテゴリごとに集計します。</p>
+          <div class="category-grid">
+            <div class="category-card">
+              <h4>収入カテゴリ</h4>
+              <div id="incomeCategorySummary" class="list-stack"></div>
+            </div>
+            <div class="category-card">
+              <h4>支出カテゴリ</h4>
+              <div id="expenseCategorySummary" class="list-stack"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section-card">
+          <h3>グラフ</h3>
+          <p class="section-copy">全期間の月別推移と、現在の絞り込み条件でのカテゴリ別金額を棒グラフで表示します。</p>
+          <div class="chart-grid">
+            <div class="chart-card">
+              <h4>月別推移</h4>
+              <div id="monthlyChart" class="bar-list"></div>
+            </div>
+            <div class="chart-card">
+              <h4>カテゴリ別グラフ</h4>
+              <div id="categoryChart" class="bar-list"></div>
+            </div>
+          </div>
+        </section>
+
+        <div id="undoBar" class="undo-bar" hidden>
+          <span id="undoMessage" class="undo-copy"></span>
+          <div class="toolbar-actions">
+            <button type="button" id="undoButton" class="secondary">元に戻す</button>
+            <button type="button" id="dismissUndoButton" class="small-button">閉じる</button>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <div>
+            <h2>一覧</h2>
+            <p id="listCopy" class="panel-copy">新しい日付順で表示します。</p>
+          </div>
+          <span id="countBadge" class="badge">0件</span>
+        </div>
+
+        <div id="listContainer"></div>
+      </section>
+    </main>
+  </div>
+
+  <div id="memoModal" class="modal" hidden>
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <h3>メモ詳細</h3>
+          <div id="memoMeta" class="modal-meta"></div>
+        </div>
+        <button type="button" id="closeMemoButton" class="secondary">閉じる</button>
+      </div>
+      <div id="memoBody" class="modal-body"></div>
+    </div>
+  </div>
+
+  <script>
+    const ENTRY_STORAGE_KEY = "advancedBudgetEntriesV1";
+    const TEMPLATE_STORAGE_KEY = "advancedBudgetTemplatesV1";
+    const BUDGET_STORAGE_KEY = "advancedBudgetBudgetsV1";
+    const CATEGORY_OPTIONS = {
+      income: ["給料", "副収入", "おこづかい", "返金", "賞与", "その他"],
+      expense: ["食費", "日用品", "交通費", "交際費", "趣味", "固定費", "医療費", "その他"]
+    };
+    const DEFAULT_TEMPLATES = [
+      { id: "tpl-rent", name: "家賃", type: "expense", category: "固定費", amount: 70000, day: 25, memo: "毎月の家賃" },
+      { id: "tpl-phone", name: "通信費", type: "expense", category: "固定費", amount: 8000, day: 8, memo: "スマホとネット" },
+      { id: "tpl-salary", name: "給料", type: "income", category: "給料", amount: 250000, day: 25, memo: "月給" }
+    ];
+
+    const entryForm = document.getElementById("entryForm");
+    const dateInput = document.getElementById("date");
+    const typeInput = document.getElementById("type");
+    const categoryInput = document.getElementById("category");
+    const amountInput = document.getElementById("amount");
+    const memoInput = document.getElementById("memo");
+    const submitButton = document.getElementById("submitButton");
+    const cancelEditButton = document.getElementById("cancelEditButton");
+
+    const templateForm = document.getElementById("templateForm");
+    const templateNameInput = document.getElementById("templateName");
+    const templateTypeInput = document.getElementById("templateType");
+    const templateCategoryInput = document.getElementById("templateCategory");
+    const templateAmountInput = document.getElementById("templateAmount");
+    const templateDayInput = document.getElementById("templateDay");
+    const templateMemoInput = document.getElementById("templateMemo");
+    const templateMonthInput = document.getElementById("templateMonth");
+    const addAllTemplatesButton = document.getElementById("addAllTemplatesButton");
+    const templateList = document.getElementById("templateList");
+
+    const budgetForm = document.getElementById("budgetForm");
+    const budgetTypeInput = document.getElementById("budgetType");
+    const budgetCategoryInput = document.getElementById("budgetCategory");
+    const budgetAmountInput = document.getElementById("budgetAmount");
+    const budgetList = document.getElementById("budgetList");
+
+    const exportCsvButton = document.getElementById("exportCsvButton");
+    const importModeInput = document.getElementById("importMode");
+    const importCsvInput = document.getElementById("importCsvInput");
+
+    const incomeTotal = document.getElementById("incomeTotal");
+    const expenseTotal = document.getElementById("expenseTotal");
+    const balanceTotal = document.getElementById("balanceTotal");
+    const entryCount = document.getElementById("entryCount");
+    const budgetProgressCopy = document.getElementById("budgetProgressCopy");
+    const budgetProgress = document.getElementById("budgetProgress");
+    const monthlySummary = document.getElementById("monthlySummary");
+    const incomeCategorySummary = document.getElementById("incomeCategorySummary");
+    const expenseCategorySummary = document.getElementById("expenseCategorySummary");
+    const monthlyChart = document.getElementById("monthlyChart");
+    const categoryChart = document.getElementById("categoryChart");
+    const countBadge = document.getElementById("countBadge");
+    const listCopy = document.getElementById("listCopy");
+    const listContainer = document.getElementById("listContainer");
+
+    const monthFilterInput = document.getElementById("monthFilter");
+    const typeFilterInput = document.getElementById("typeFilter");
+    const categoryFilterInput = document.getElementById("categoryFilter");
+    const searchInput = document.getElementById("searchInput");
+    const resetFiltersButton = document.getElementById("resetFiltersButton");
+
+    const undoBar = document.getElementById("undoBar");
+    const undoMessage = document.getElementById("undoMessage");
+    const undoButton = document.getElementById("undoButton");
+    const dismissUndoButton = document.getElementById("dismissUndoButton");
+    const status = document.getElementById("status");
+
+    const memoModal = document.getElementById("memoModal");
+    const memoMeta = document.getElementById("memoMeta");
+    const memoBody = document.getElementById("memoBody");
+    const closeMemoButton = document.getElementById("closeMemoButton");
+    const installAppButton = document.getElementById("installAppButton");
+    const installHint = document.getElementById("installHint");
+
+    let entries = loadEntries();
+    let templates = loadTemplates();
+    let budgets = loadBudgets();
+    let editingId = null;
+    let undoSnapshot = null;
+    let deferredInstallPrompt = null;
+
+    dateInput.value = todayAsInputValue();
+    templateMonthInput.value = currentMonthValue();
+    updateCategorySelect(categoryInput, typeInput.value);
+    updateCategorySelect(templateCategoryInput, templateTypeInput.value);
+    updateCategorySelect(budgetCategoryInput, budgetTypeInput.value);
+    updateFilterCategoryOptions();
+    render();
+    setupPwa();
+
+    typeInput.addEventListener("change", () => updateCategorySelect(categoryInput, typeInput.value));
+    templateTypeInput.addEventListener("change", () => updateCategorySelect(templateCategoryInput, templateTypeInput.value));
+    budgetTypeInput.addEventListener("change", () => updateCategorySelect(budgetCategoryInput, budgetTypeInput.value));
+    typeFilterInput.addEventListener("change", () => {
+      updateFilterCategoryOptions();
+      render();
+    });
+
+    entryForm.addEventListener("submit", handleEntrySubmit);
+    cancelEditButton.addEventListener("click", resetEntryForm);
+    templateForm.addEventListener("submit", handleTemplateSubmit);
+    addAllTemplatesButton.addEventListener("click", addAllTemplatesToMonth);
+    budgetForm.addEventListener("submit", handleBudgetSubmit);
+    exportCsvButton.addEventListener("click", exportEntriesCsv);
+    importCsvInput.addEventListener("change", handleCsvImport);
+    monthFilterInput.addEventListener("change", render);
+    categoryFilterInput.addEventListener("change", render);
+    searchInput.addEventListener("input", render);
+    resetFiltersButton.addEventListener("click", resetFilters);
+    undoButton.addEventListener("click", undoLastAction);
+    dismissUndoButton.addEventListener("click", clearUndoSnapshot);
+    closeMemoButton.addEventListener("click", closeMemoModal);
+    installAppButton.addEventListener("click", installPwa);
+    memoModal.addEventListener("click", (event) => {
+      if (event.target === memoModal) {
+        closeMemoModal();
+      }
+    });
+
+    window.addEventListener("beforeinstallprompt", (event) => {
+      event.preventDefault();
+      deferredInstallPrompt = event;
+      installAppButton.hidden = false;
+      installHint.textContent = "インストールボタンからホーム画面やDockへ追加できます。";
+    });
+
+    window.addEventListener("appinstalled", () => {
+      deferredInstallPrompt = null;
+      installAppButton.hidden = true;
+      installHint.textContent = "この端末にはインストール済みです。";
+    });
+
+    function handleEntrySubmit(event) {
+      event.preventDefault();
+
+      const entry = normalizeEntry({
+        id: editingId || crypto.randomUUID(),
+        date: dateInput.value,
+        type: typeInput.value,
+        category: categoryInput.value,
+        amount: Number(amountInput.value),
+        memo: memoInput.value.trim()
+      });
+
+      if (!isValidEntry(entry)) {
+        showStatus("日付・種別・カテゴリ・金額を正しく入力してください。", true);
+        return;
+      }
+
+      if (editingId) {
+        entries = entries.map((item) => item.id === editingId ? entry : item);
+        showStatus("記録を更新しました。");
+      } else {
+        entries = [entry, ...entries];
+        showStatus("記録を追加しました。");
+      }
+
+      saveEntries();
+      resetEntryForm(false);
+      render();
+    }
+
+    function resetEntryForm(clearStatus = true) {
+      editingId = null;
+      entryForm.reset();
+      dateInput.value = todayAsInputValue();
+      typeInput.value = "expense";
+      updateCategorySelect(categoryInput, typeInput.value);
+      submitButton.textContent = "記録を追加";
+      cancelEditButton.hidden = true;
+
+      if (clearStatus) {
+        status.classList.remove("is-active");
+        status.textContent = "";
+      }
+    }
+
+    function startEditEntry(id) {
+      const target = entries.find((entry) => entry.id === id);
+      if (!target) {
+        return;
+      }
+
+      editingId = id;
+      dateInput.value = target.date;
+      typeInput.value = target.type;
+      updateCategorySelect(categoryInput, target.type);
+      categoryInput.value = target.category;
+      amountInput.value = target.amount;
+      memoInput.value = target.memo;
+      submitButton.textContent = "記録を更新";
+      cancelEditButton.hidden = false;
+      showStatus("編集中です。内容を直して更新してください。");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      amountInput.focus();
+    }
+
+    function removeEntry(id) {
+      const target = entries.find((entry) => entry.id === id);
+      if (!target) {
+        return;
+      }
+
+      const ok = window.confirm("この記録を削除しますか？");
+      if (!ok) {
+        return;
+      }
+
+      stashUndoSnapshot("削除した記録を元に戻せます。");
+      entries = entries.filter((entry) => entry.id !== id);
+      if (editingId === id) {
+        resetEntryForm();
+      }
+      saveEntries();
+      render();
+      showStatus("記録を削除しました。");
+    }
+
+    function openMemoModal(id) {
+      const target = entries.find((entry) => entry.id === id);
+      if (!target) {
+        return;
+      }
+
+      memoMeta.innerHTML = `
+        <span>${formatDate(target.date)}</span>
+        <span>${target.type === "income" ? "収入" : "支出"}</span>
+        <span>${escapeHtml(target.category)}</span>
+        <span>${formatYen(target.amount)}</span>
+      `;
+      memoBody.textContent = target.memo || "メモはありません。";
+      memoModal.hidden = false;
+    }
+
+    function closeMemoModal() {
+      memoModal.hidden = true;
+    }
+
+    function handleTemplateSubmit(event) {
+      event.preventDefault();
+
+      const template = normalizeTemplate({
+        id: crypto.randomUUID(),
+        name: templateNameInput.value.trim(),
+        type: templateTypeInput.value,
+        category: templateCategoryInput.value,
+        amount: Number(templateAmountInput.value),
+        day: Number(templateDayInput.value),
+        memo: templateMemoInput.value.trim()
+      });
+
+      if (!isValidTemplate(template)) {
+        showStatus("テンプレート名・種別・カテゴリ・金額・日付を正しく入力してください。", true);
+        return;
+      }
+
+      templates = [template, ...templates];
+      saveTemplates();
+      templateForm.reset();
+      templateTypeInput.value = "expense";
+      updateCategorySelect(templateCategoryInput, templateTypeInput.value);
+      render();
+      showStatus("固定費テンプレートを追加しました。");
+    }
+
+    function addTemplateToMonth(id) {
+      const template = templates.find((item) => item.id === id);
+      if (!template) {
+        return;
+      }
+
+      const month = templateMonthInput.value || currentMonthValue();
+      const entry = normalizeEntry({
+        id: crypto.randomUUID(),
+        date: createDateForMonthDay(month, template.day),
+        type: template.type,
+        category: template.category,
+        amount: template.amount,
+        memo: template.memo ? `${template.name} / ${template.memo}` : template.name
+      });
+
+      entries = [entry, ...entries];
+      saveEntries();
+      render();
+      showStatus(`${template.name} を ${formatMonth(month)} に追加しました。`);
+    }
+
+    function addAllTemplatesToMonth() {
+      if (templates.length === 0) {
+        showStatus("追加できるテンプレートがありません。", true);
+        return;
+      }
+
+      const month = templateMonthInput.value || currentMonthValue();
+      const created = templates.map((template) => normalizeEntry({
+        id: crypto.randomUUID(),
+        date: createDateForMonthDay(month, template.day),
+        type: template.type,
+        category: template.category,
+        amount: template.amount,
+        memo: template.memo ? `${template.name} / ${template.memo}` : template.name
+      }));
+
+      entries = [...created, ...entries];
+      saveEntries();
+      render();
+      showStatus(`${formatMonth(month)} にテンプレートを ${created.length}件追加しました。`);
+    }
+
+    function removeTemplate(id) {
+      const target = templates.find((item) => item.id === id);
+      if (!target) {
+        return;
+      }
+
+      const ok = window.confirm("このテンプレートを削除しますか？");
+      if (!ok) {
+        return;
+      }
+
+      stashUndoSnapshot("削除したテンプレートを元に戻せます。");
+      templates = templates.filter((item) => item.id !== id);
+      saveTemplates();
+      render();
+      showStatus("テンプレートを削除しました。");
+    }
+
+    function handleBudgetSubmit(event) {
+      event.preventDefault();
+
+      const payload = normalizeBudget({
+        id: crypto.randomUUID(),
+        type: budgetTypeInput.value,
+        category: budgetCategoryInput.value,
+        amount: Number(budgetAmountInput.value)
+      });
+
+      if (!isValidBudget(payload)) {
+        showStatus("種別・カテゴリ・予算額を正しく入力してください。", true);
+        return;
+      }
+
+      const existing = budgets.find((budget) => budget.type === payload.type && budget.category === payload.category);
+      if (existing) {
+        budgets = budgets.map((budget) => budget.id === existing.id ? { ...payload, id: existing.id } : budget);
+        showStatus("既存の予算を更新しました。");
+      } else {
+        budgets = [payload, ...budgets];
+        showStatus("予算を追加しました。");
+      }
+
+      saveBudgets();
+      budgetForm.reset();
+      budgetTypeInput.value = "expense";
+      updateCategorySelect(budgetCategoryInput, budgetTypeInput.value);
+      render();
+    }
+
+    function removeBudget(id) {
+      const target = budgets.find((item) => item.id === id);
+      if (!target) {
+        return;
+      }
+
+      const ok = window.confirm("この予算設定を削除しますか？");
+      if (!ok) {
+        return;
+      }
+
+      stashUndoSnapshot("削除した予算設定を元に戻せます。");
+      budgets = budgets.filter((item) => item.id !== id);
+      saveBudgets();
+      render();
+      showStatus("予算設定を削除しました。");
+    }
+
+    function resetFilters() {
+      monthFilterInput.value = "";
+      typeFilterInput.value = "all";
+      searchInput.value = "";
+      updateFilterCategoryOptions("all");
+      render();
+    }
+
+    function render() {
+      updateFilterCategoryOptions(categoryFilterInput.value);
+      renderTemplateList();
+      renderBudgetList();
+      renderUndoBar();
+
+      const filteredEntries = applyFilters(entries);
+      const sortedFilteredEntries = sortEntries(filteredEntries);
+      const sortedAllEntries = sortEntries(entries);
+      const income = filteredEntries
+        .filter((entry) => entry.type === "income")
+        .reduce((sum, entry) => sum + entry.amount, 0);
+      const expense = filteredEntries
+        .filter((entry) => entry.type === "expense")
+        .reduce((sum, entry) => sum + entry.amount, 0);
+      const balance = income - expense;
+
+      incomeTotal.textContent = formatYen(income);
+      expenseTotal.textContent = formatYen(expense);
+      balanceTotal.textContent = formatYen(balance);
+      balanceTotal.style.color = balance >= 0 ? "var(--income)" : "var(--expense)";
+      entryCount.textContent = `${filteredEntries.length}件`;
+      countBadge.textContent = `${filteredEntries.length}件表示 / 全${entries.length}件`;
+      listCopy.textContent = buildListCopy();
+
+      renderBudgetProgress();
+      renderMonthlySummary(sortedAllEntries);
+      renderCategorySummary(sortedFilteredEntries);
+      renderCharts(sortedFilteredEntries, sortedAllEntries);
+      renderEntryList(sortedFilteredEntries);
+    }
+
+    function renderTemplateList() {
+      if (templates.length === 0) {
+        templateList.innerHTML = '<div class="empty">テンプレートはまだありません。</div>';
+        return;
+      }
+
+      templateList.innerHTML = sortTemplates(templates).map((template) => `
+        <article class="template-card">
+          <h4>${escapeHtml(template.name)}</h4>
+          <div class="template-meta">
+            <span>${template.type === "income" ? "収入" : "支出"}</span>
+            <span>${escapeHtml(template.category)}</span>
+            <span class="highlight ${template.type}">${formatYen(template.amount)}</span>
+            <span>${template.day}日</span>
+          </div>
+          <div class="template-meta" style="margin-top: 8px;">${template.memo ? escapeHtml(template.memo) : "メモなし"}</div>
+          <div class="template-actions">
+            <button type="button" class="subtle-button" data-action="apply-template" data-id="${escapeHtml(template.id)}">対象月に追加</button>
+            <button type="button" class="danger" data-action="delete-template" data-id="${escapeHtml(template.id)}">削除</button>
+          </div>
+        </article>
+      `).join("");
+
+      templateList.querySelectorAll("[data-action='apply-template']").forEach((button) => {
+        button.addEventListener("click", () => addTemplateToMonth(button.dataset.id));
+      });
+
+      templateList.querySelectorAll("[data-action='delete-template']").forEach((button) => {
+        button.addEventListener("click", () => removeTemplate(button.dataset.id));
+      });
+    }
+
+    function renderBudgetList() {
+      if (budgets.length === 0) {
+        budgetList.innerHTML = '<div class="empty">予算設定はまだありません。</div>';
+        return;
+      }
+
+      budgetList.innerHTML = sortBudgets(budgets).map((budget) => `
+        <article class="budget-setting-card">
+          <h4>${budget.type === "income" ? "収入" : "支出"} / ${escapeHtml(budget.category)}</h4>
+          <div class="budget-setting-meta">
+            <span>予算</span>
+            <span class="highlight ${budget.type}">${formatYen(budget.amount)}</span>
+          </div>
+          <div class="budget-setting-actions">
+            <button type="button" class="danger" data-action="delete-budget" data-id="${escapeHtml(budget.id)}">削除</button>
+          </div>
+        </article>
+      `).join("");
+
+      budgetList.querySelectorAll("[data-action='delete-budget']").forEach((button) => {
+        button.addEventListener("click", () => removeBudget(button.dataset.id));
+      });
+    }
+
+    function renderBudgetProgress() {
+      const targetMonth = monthFilterInput.value || currentMonthValue();
+      budgetProgressCopy.textContent = `${formatMonth(targetMonth)} の予算と実績です。`;
+
+      if (budgets.length === 0) {
+        budgetProgress.innerHTML = '<div class="empty">予算を設定すると進捗が表示されます。</div>';
+        return;
+      }
+
+      const monthEntries = entries.filter((entry) => entry.date.startsWith(targetMonth));
+      const cards = sortBudgets(budgets).map((budget) => {
+        const actual = monthEntries
+          .filter((entry) => entry.type === budget.type && entry.category === budget.category)
+          .reduce((sum, entry) => sum + entry.amount, 0);
+        const rate = budget.amount > 0 ? Math.min((actual / budget.amount) * 100, 100) : 0;
+        const remaining = budget.amount - actual;
+        const metaText = budget.type === "expense"
+          ? remaining >= 0 ? `残り ${formatYen(remaining)}` : `${formatYen(Math.abs(remaining))} 超過`
+          : remaining >= 0 ? `目標まで ${formatYen(remaining)}` : `${formatYen(Math.abs(remaining))} 達成超過`;
+
+        return `
+          <article class="budget-card">
+            <h4>${budget.type === "income" ? "収入" : "支出"} / ${escapeHtml(budget.category)}</h4>
+            <div class="stat-row">
+              <span>予算</span>
+              <span class="highlight ${budget.type}">${formatYen(budget.amount)}</span>
+            </div>
+            <div class="stat-row">
+              <span>実績</span>
+              <span class="highlight ${budget.type}">${formatYen(actual)}</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill ${budget.type}" style="width: ${rate}%"></div>
+            </div>
+            <div class="stat-row">
+              <span>進捗 ${Math.round(rate)}%</span>
+              <span>${metaText}</span>
+            </div>
+          </article>
+        `;
+      });
+
+      budgetProgress.innerHTML = cards.join("");
+    }
+
+    function renderMonthlySummary(sortedEntries) {
+      if (sortedEntries.length === 0) {
+        monthlySummary.innerHTML = '<div class="empty">月別集計はまだありません。</div>';
+        return;
+      }
+
+      const months = buildMonthlyRows(sortedEntries);
+      monthlySummary.innerHTML = months.map((row) => `
+        <article class="monthly-card">
+          <h4>${formatMonth(row.month)}</h4>
+          <div class="stat-row">
+            <span>月初残高</span>
+            <span class="highlight ${row.carryIn >= 0 ? "income" : "expense"}">${formatYen(row.carryIn)}</span>
+          </div>
+          <div class="stat-row">
+            <span>収入</span>
+            <span class="highlight income">${formatYen(row.income)}</span>
+          </div>
+          <div class="stat-row">
+            <span>支出</span>
+            <span class="highlight expense">${formatYen(row.expense)}</span>
+          </div>
+          <div class="stat-row">
+            <span>月末残高</span>
+            <span class="highlight ${row.carryOut >= 0 ? "income" : "expense"}">${formatYen(row.carryOut)}</span>
+          </div>
+        </article>
+      `).join("");
+    }
+
+    function renderCategorySummary(sortedFilteredEntries) {
+      const incomeSummary = summarizeByCategory(sortedFilteredEntries, "income");
+      const expenseSummary = summarizeByCategory(sortedFilteredEntries, "expense");
+
+      incomeCategorySummary.innerHTML = incomeSummary.length > 0
+        ? incomeSummary.map((item) => `
+            <div class="meta-row">
+              <span>${escapeHtml(item.category)}</span>
+              <span class="highlight income">${formatYen(item.amount)}</span>
+            </div>
+          `).join("")
+        : '<div class="empty">収入カテゴリの記録はありません。</div>';
+
+      expenseCategorySummary.innerHTML = expenseSummary.length > 0
+        ? expenseSummary.map((item) => `
+            <div class="meta-row">
+              <span>${escapeHtml(item.category)}</span>
+              <span class="highlight expense">${formatYen(item.amount)}</span>
+            </div>
+          `).join("")
+        : '<div class="empty">支出カテゴリの記録はありません。</div>';
+    }
+
+    function renderCharts(sortedFilteredEntries, sortedAllEntries) {
+      const monthlyRows = buildMonthlyRows(sortedAllEntries);
+      const monthlyMax = Math.max(
+        1,
+        ...monthlyRows.map((row) => Math.max(row.income, row.expense, Math.abs(row.carryOut)))
+      );
+
+      monthlyChart.innerHTML = monthlyRows.length > 0
+        ? monthlyRows.map((row) => `
+            <div class="bar-item">
+              <div class="bar-row">
+                <strong>${formatMonth(row.month)}</strong>
+                <span>${formatYen(row.carryOut)}</span>
+              </div>
+              <div class="bar-row">
+                <span>収入</span>
+                <span class="highlight income">${formatYen(row.income)}</span>
+              </div>
+              <div class="bar-track">
+                <div class="bar-fill income" style="width: ${(row.income / monthlyMax) * 100}%"></div>
+              </div>
+              <div class="bar-row">
+                <span>支出</span>
+                <span class="highlight expense">${formatYen(row.expense)}</span>
+              </div>
+              <div class="bar-track">
+                <div class="bar-fill expense" style="width: ${(row.expense / monthlyMax) * 100}%"></div>
+              </div>
+            </div>
+          `).join("")
+        : '<div class="empty">月別グラフはまだありません。</div>';
+
+      const expenseSummary = summarizeByCategory(sortedFilteredEntries, "expense");
+      const incomeSummary = summarizeByCategory(sortedFilteredEntries, "income");
+      const combined = [
+        ...expenseSummary.slice(0, 5).map((item) => ({ ...item, tone: "expense", label: `支出 / ${item.category}` })),
+        ...incomeSummary.slice(0, 5).map((item) => ({ ...item, tone: "income", label: `収入 / ${item.category}` }))
+      ];
+      const categoryMax = Math.max(1, ...combined.map((item) => item.amount));
+
+      categoryChart.innerHTML = combined.length > 0
+        ? combined.map((item) => `
+            <div class="bar-item">
+              <div class="bar-row">
+                <strong>${escapeHtml(item.label)}</strong>
+                <span class="highlight ${item.tone}">${formatYen(item.amount)}</span>
+              </div>
+              <div class="bar-track">
+                <div class="bar-fill ${item.tone}" style="width: ${(item.amount / categoryMax) * 100}%"></div>
+              </div>
+            </div>
+          `).join("")
+        : '<div class="empty">カテゴリ別グラフはまだありません。</div>';
+    }
+
+    function renderEntryList(sortedFilteredEntries) {
+      if (entries.length === 0) {
+        listContainer.innerHTML = '<div class="empty">まだ記録がありません。左のフォームから追加してください。</div>';
+        return;
+      }
+
+      if (sortedFilteredEntries.length === 0) {
+        listContainer.innerHTML = '<div class="empty">条件に合う記録がありません。絞り込み条件を変えてください。</div>';
+        return;
+      }
+
+      listContainer.innerHTML = `
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>日付</th>
+                <th>種別</th>
+                <th>カテゴリ</th>
+                <th>金額</th>
+                <th>メモ</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${sortedFilteredEntries.map((entry) => `
+                <tr>
+                  <td>${formatDate(entry.date)}</td>
+                  <td><span class="type-chip ${entry.type}">${entry.type === "income" ? "収入" : "支出"}</span></td>
+                  <td>${escapeHtml(entry.category)}</td>
+                  <td class="${entry.type === "income" ? "amount-income" : "amount-expense"}">${entry.type === "income" ? "+" : "-"}${formatYen(entry.amount)}</td>
+                  <td class="memo-preview ${entry.memo ? "" : "is-empty"}">${entry.memo ? escapeHtml(shorten(entry.memo, 28)) : "メモなし"}</td>
+                  <td>
+                    <div class="table-actions">
+                      <button type="button" class="small-button" data-action="detail" data-id="${escapeHtml(entry.id)}">詳細</button>
+                      <button type="button" class="small-button" data-action="edit" data-id="${escapeHtml(entry.id)}">編集</button>
+                      <button type="button" class="danger" data-action="delete" data-id="${escapeHtml(entry.id)}">削除</button>
+                    </div>
+                  </td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      `;
+
+      listContainer.querySelectorAll("[data-action='detail']").forEach((button) => {
+        button.addEventListener("click", () => openMemoModal(button.dataset.id));
+      });
+
+      listContainer.querySelectorAll("[data-action='edit']").forEach((button) => {
+        button.addEventListener("click", () => startEditEntry(button.dataset.id));
+      });
+
+      listContainer.querySelectorAll("[data-action='delete']").forEach((button) => {
+        button.addEventListener("click", () => removeEntry(button.dataset.id));
+      });
+    }
+
+    function handleCsvImport(event) {
+      const file = event.target.files[0];
+      if (!file) {
+        return;
+      }
+
+      file.text()
+        .then((text) => {
+          const importedEntries = importEntriesFromCsv(text);
+          if (importedEntries.length === 0) {
+            throw new Error("CSVに読み込める記録がありません。");
+          }
+
+          stashUndoSnapshot("CSV読み込み前の状態に戻せます。");
+
+          if (importModeInput.value === "replace") {
+            entries = importedEntries;
+            resetEntryForm(false);
+          } else {
+            const existingIds = new Set(entries.map((entry) => entry.id));
+            const appended = importedEntries.map((entry) => {
+              if (!existingIds.has(entry.id)) {
+                existingIds.add(entry.id);
+                return entry;
+              }
+
+              const nextId = crypto.randomUUID();
+              existingIds.add(nextId);
+              return { ...entry, id: nextId };
+            });
+            entries = [...appended, ...entries];
+          }
+
+          saveEntries();
+          render();
+          showStatus(importModeInput.value === "replace" ? "CSVを読み込んで記録を置き換えました。" : "CSVを読み込んで記録を追加しました。");
+        })
+        .catch((error) => {
+          console.error(error);
+          showStatus(error.message || "CSV読み込みに失敗しました。", true);
+        })
+        .finally(() => {
+          event.target.value = "";
+        });
+    }
+
+    function exportEntriesCsv() {
+      const headers = ["id", "date", "type", "category", "amount", "memo"];
+      const rows = sortEntries(entries).map((entry) => [
+        entry.id,
+        entry.date,
+        entry.type,
+        entry.category,
+        entry.amount,
+        entry.memo
+      ]);
+
+      const csvText = [headers, ...rows]
+        .map((row) => row.map(csvEscape).join(","))
+        .join("\r\n");
+
+      const blob = new Blob(["\uFEFF" + csvText], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `kakeibo-${todayAsInputValue()}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      showStatus("CSVを書き出しました。");
+    }
+
+    function importEntriesFromCsv(text) {
+      const rows = parseCsv(text.replace(/^\uFEFF/, ""));
+      if (rows.length < 2) {
+        throw new Error("CSVにデータがありません。");
+      }
+
+      const headers = rows[0].map((header) => header.trim());
+      ["date", "type", "category", "amount"].forEach((header) => {
+        if (!headers.includes(header)) {
+          throw new Error(`CSVに ${header} 列がありません。`);
+        }
+      });
+
+      return rows
+        .slice(1)
+        .filter((row) => row.some((cell) => String(cell || "").trim() !== ""))
+        .map((row, index) => {
+          const record = {};
+          headers.forEach((header, headerIndex) => {
+            record[header] = row[headerIndex] ?? "";
+          });
+
+          const rawType = String(record.type || "").trim();
+          if (!["income", "expense"].includes(rawType)) {
+            throw new Error(`${index + 2}行目の種別は income または expense にしてください。`);
+          }
+
+          const entry = normalizeEntry({
+            id: record.id || crypto.randomUUID(),
+            date: String(record.date || "").trim(),
+            type: rawType,
+            category: String(record.category || "").trim(),
+            amount: Number(record.amount),
+            memo: String(record.memo || "")
+          });
+
+          if (!isValidEntry(entry)) {
+            throw new Error(`${index + 2}行目の内容が正しくありません。`);
+          }
+
+          return entry;
+        });
+    }
+
+    function updateCategorySelect(selectElement, type) {
+      const currentValue = selectElement.value;
+      const categories = collectCategories(type);
+      selectElement.innerHTML = categories
+        .map((category) => `<option value="${escapeHtml(category)}">${escapeHtml(category)}</option>`)
+        .join("");
+
+      if (categories.includes(currentValue)) {
+        selectElement.value = currentValue;
+      }
+    }
+
+    function updateFilterCategoryOptions(preferredValue = categoryFilterInput.value) {
+      const categories = collectCategories(typeFilterInput.value === "all" ? null : typeFilterInput.value);
+      const options = ["all", ...categories];
+      categoryFilterInput.innerHTML = options
+        .map((category) => `<option value="${escapeHtml(category)}">${category === "all" ? "すべて" : escapeHtml(category)}</option>`)
+        .join("");
+
+      if (options.includes(preferredValue)) {
+        categoryFilterInput.value = preferredValue;
+      } else {
+        categoryFilterInput.value = "all";
+      }
+    }
+
+    function collectCategories(type = null) {
+      const categories = new Set();
+
+      if (!type || type === "income") {
+        CATEGORY_OPTIONS.income.forEach((item) => categories.add(item));
+      }
+      if (!type || type === "expense") {
+        CATEGORY_OPTIONS.expense.forEach((item) => categories.add(item));
+      }
+
+      entries.forEach((entry) => {
+        if (!type || entry.type === type) {
+          categories.add(entry.category);
+        }
+      });
+
+      templates.forEach((template) => {
+        if (!type || template.type === type) {
+          categories.add(template.category);
+        }
+      });
+
+      budgets.forEach((budget) => {
+        if (!type || budget.type === type) {
+          categories.add(budget.category);
+        }
+      });
+
+      return [...categories].sort((a, b) => a.localeCompare(b, "ja"));
+    }
+
+    function applyFilters(sourceEntries) {
+      return sourceEntries.filter((entry) => {
+        if (monthFilterInput.value && !entry.date.startsWith(monthFilterInput.value)) {
+          return false;
+        }
+
+        if (typeFilterInput.value !== "all" && entry.type !== typeFilterInput.value) {
+          return false;
+        }
+
+        if (categoryFilterInput.value !== "all" && entry.category !== categoryFilterInput.value) {
+          return false;
+        }
+
+        if (!searchInput.value.trim()) {
+          return true;
+        }
+
+        const query = searchInput.value.trim().toLowerCase();
+        const haystack = [entry.category, entry.memo, formatDate(entry.date), entry.type === "income" ? "収入" : "支出"]
+          .join(" ")
+          .toLowerCase();
+        return haystack.includes(query);
+      });
+    }
+
+    function buildMonthlyRows(sortedEntries) {
+      if (sortedEntries.length === 0) {
+        return [];
+      }
+
+      const monthMap = new Map();
+      sortedEntries.forEach((entry) => {
+        const month = entry.date.slice(0, 7);
+        if (!monthMap.has(month)) {
+          monthMap.set(month, { month, income: 0, expense: 0 });
+        }
+        monthMap.get(month)[entry.type] += entry.amount;
+      });
+
+      const monthsAsc = [...monthMap.values()].sort((a, b) => a.month.localeCompare(b.month));
+      let carry = 0;
+      const rows = monthsAsc.map((row) => {
+        const carryIn = carry;
+        const carryOut = carryIn + row.income - row.expense;
+        carry = carryOut;
+        return { ...row, carryIn, carryOut };
+      });
+
+      return rows.sort((a, b) => b.month.localeCompare(a.month));
+    }
+
+    function summarizeByCategory(sourceEntries, type) {
+      const categoryMap = new Map();
+      sourceEntries
+        .filter((entry) => entry.type === type)
+        .forEach((entry) => {
+          categoryMap.set(entry.category, (categoryMap.get(entry.category) || 0) + entry.amount);
+        });
+
+      return [...categoryMap.entries()]
+        .map(([category, amount]) => ({ category, amount }))
+        .sort((a, b) => b.amount - a.amount);
+    }
+
+    function buildListCopy() {
+      const parts = [];
+      if (monthFilterInput.value) {
+        parts.push(`${formatMonth(monthFilterInput.value)}`);
+      } else {
+        parts.push("全期間");
+      }
+
+      if (typeFilterInput.value !== "all") {
+        parts.push(typeFilterInput.value === "income" ? "収入のみ" : "支出のみ");
+      }
+
+      if (categoryFilterInput.value !== "all") {
+        parts.push(`カテゴリ: ${categoryFilterInput.value}`);
+      }
+
+      if (searchInput.value.trim()) {
+        parts.push(`検索: ${searchInput.value.trim()}`);
+      }
+
+      return `${parts.join(" / ")} を新しい日付順で表示しています。`;
+    }
+
+    function stashUndoSnapshot(message) {
+      undoSnapshot = {
+        message,
+        entries: clone(entries),
+        templates: clone(templates),
+        budgets: clone(budgets),
+        editingId
+      };
+    }
+
+    function undoLastAction() {
+      if (!undoSnapshot) {
+        return;
+      }
+
+      entries = clone(undoSnapshot.entries).map(normalizeEntry);
+      templates = clone(undoSnapshot.templates).map(normalizeTemplate);
+      budgets = clone(undoSnapshot.budgets).map(normalizeBudget);
+      editingId = undoSnapshot.editingId;
+      saveEntries();
+      saveTemplates();
+      saveBudgets();
+      clearUndoSnapshot(false);
+      render();
+      showStatus("元に戻しました。");
+    }
+
+    function clearUndoSnapshot(shouldRender = true) {
+      undoSnapshot = null;
+      if (shouldRender) {
+        renderUndoBar();
+      }
+    }
+
+    function renderUndoBar() {
+      if (!undoSnapshot) {
+        undoBar.hidden = true;
+        undoMessage.textContent = "";
+        return;
+      }
+
+      undoBar.hidden = false;
+      undoMessage.textContent = undoSnapshot.message;
+    }
+
+    async function setupPwa() {
+      if (window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone) {
+        installHint.textContent = "アプリとして起動中です。";
+      } else if (location.protocol === "file:") {
+        installHint.textContent = "アプリとして使うにはブラウザで localhost から開いてください。";
+      }
+
+      if (!("serviceWorker" in navigator)) {
+        installHint.textContent = "このブラウザではアプリ化機能が一部使えません。";
+        return;
+      }
+
+      if (location.protocol === "file:") {
+        return;
+      }
+
+      try {
+        await navigator.serviceWorker.register("./sw.js");
+      } catch (error) {
+        console.error("Service Workerの登録に失敗しました。", error);
+        installHint.textContent = "オフライン対応の初期化に失敗しました。";
+      }
+    }
+
+    async function installPwa() {
+      if (!deferredInstallPrompt) {
+        installHint.textContent = "ブラウザの共有メニューやアドレスバーからインストールしてください。";
+        return;
+      }
+
+      deferredInstallPrompt.prompt();
+      const result = await deferredInstallPrompt.userChoice;
+      if (result.outcome === "accepted") {
+        installHint.textContent = "インストールを開始しました。";
+      } else {
+        installHint.textContent = "必要ならあとで再度インストールできます。";
+      }
+      deferredInstallPrompt = null;
+      installAppButton.hidden = true;
+    }
+
+    function loadEntries() {
+      try {
+        const raw = localStorage.getItem(ENTRY_STORAGE_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed.map(normalizeEntry).filter(isValidEntry) : [];
+      } catch (error) {
+        console.error("記録データの読み込みに失敗しました。", error);
+        return [];
+      }
+    }
+
+    function saveEntries() {
+      localStorage.setItem(ENTRY_STORAGE_KEY, JSON.stringify(entries));
+    }
+
+    function loadTemplates() {
+      try {
+        const raw = localStorage.getItem(TEMPLATE_STORAGE_KEY);
+        const parsed = raw ? JSON.parse(raw) : DEFAULT_TEMPLATES;
+        return Array.isArray(parsed) ? parsed.map(normalizeTemplate).filter(isValidTemplate) : clone(DEFAULT_TEMPLATES).map(normalizeTemplate);
+      } catch (error) {
+        console.error("テンプレートの読み込みに失敗しました。", error);
+        return clone(DEFAULT_TEMPLATES).map(normalizeTemplate);
+      }
+    }
+
+    function saveTemplates() {
+      localStorage.setItem(TEMPLATE_STORAGE_KEY, JSON.stringify(templates));
+    }
+
+    function loadBudgets() {
+      try {
+        const raw = localStorage.getItem(BUDGET_STORAGE_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed.map(normalizeBudget).filter(isValidBudget) : [];
+      } catch (error) {
+        console.error("予算データの読み込みに失敗しました。", error);
+        return [];
+      }
+    }
+
+    function saveBudgets() {
+      localStorage.setItem(BUDGET_STORAGE_KEY, JSON.stringify(budgets));
+    }
+
+    function normalizeEntry(entry) {
+      return {
+        id: entry.id || crypto.randomUUID(),
+        date: entry.date || todayAsInputValue(),
+        type: entry.type === "income" ? "income" : "expense",
+        category: String(entry.category || "その他").trim() || "その他",
+        amount: Number(entry.amount || 0),
+        memo: String(entry.memo || "")
+      };
+    }
+
+    function normalizeTemplate(template) {
+      return {
+        id: template.id || crypto.randomUUID(),
+        name: String(template.name || "").trim(),
+        type: template.type === "income" ? "income" : "expense",
+        category: String(template.category || "その他").trim() || "その他",
+        amount: Number(template.amount || 0),
+        day: clampDay(Number(template.day || 1)),
+        memo: String(template.memo || "")
+      };
+    }
+
+    function normalizeBudget(budget) {
+      return {
+        id: budget.id || crypto.randomUUID(),
+        type: budget.type === "income" ? "income" : "expense",
+        category: String(budget.category || "その他").trim() || "その他",
+        amount: Number(budget.amount || 0)
+      };
+    }
+
+    function isValidEntry(entry) {
+      return Boolean(
+        /^\d{4}-\d{2}-\d{2}$/.test(entry.date) &&
+        ["income", "expense"].includes(entry.type) &&
+        entry.category &&
+        Number.isFinite(entry.amount) &&
+        entry.amount > 0
+      );
+    }
+
+    function isValidTemplate(template) {
+      return Boolean(
+        template.name &&
+        ["income", "expense"].includes(template.type) &&
+        template.category &&
+        Number.isFinite(template.amount) &&
+        template.amount > 0 &&
+        template.day >= 1 &&
+        template.day <= 31
+      );
+    }
+
+    function isValidBudget(budget) {
+      return Boolean(
+        ["income", "expense"].includes(budget.type) &&
+        budget.category &&
+        Number.isFinite(budget.amount) &&
+        budget.amount > 0
+      );
+    }
+
+    function sortEntries(sourceEntries) {
+      return [...sourceEntries].sort((a, b) => {
+        const dateCompare = b.date.localeCompare(a.date);
+        if (dateCompare !== 0) {
+          return dateCompare;
+        }
+        return b.id.localeCompare(a.id);
+      });
+    }
+
+    function sortTemplates(sourceTemplates) {
+      return [...sourceTemplates].sort((a, b) => {
+        const typeCompare = a.type.localeCompare(b.type);
+        if (typeCompare !== 0) {
+          return typeCompare;
+        }
+        return a.name.localeCompare(b.name, "ja");
+      });
+    }
+
+    function sortBudgets(sourceBudgets) {
+      return [...sourceBudgets].sort((a, b) => {
+        const typeCompare = a.type.localeCompare(b.type);
+        if (typeCompare !== 0) {
+          return typeCompare;
+        }
+        return a.category.localeCompare(b.category, "ja");
+      });
+    }
+
+    function parseCsv(text) {
+      const rows = [];
+      let row = [];
+      let cell = "";
+      let inQuotes = false;
+
+      for (let index = 0; index < text.length; index += 1) {
+        const char = text[index];
+
+        if (inQuotes) {
+          if (char === '"') {
+            if (text[index + 1] === '"') {
+              cell += '"';
+              index += 1;
+            } else {
+              inQuotes = false;
+            }
+          } else {
+            cell += char;
+          }
+          continue;
+        }
+
+        if (char === '"') {
+          inQuotes = true;
+          continue;
+        }
+
+        if (char === ",") {
+          row.push(cell);
+          cell = "";
+          continue;
+        }
+
+        if (char === "\n") {
+          row.push(cell);
+          rows.push(row);
+          row = [];
+          cell = "";
+          continue;
+        }
+
+        if (char === "\r") {
+          continue;
+        }
+
+        cell += char;
+      }
+
+      if (cell !== "" || row.length > 0) {
+        row.push(cell);
+        rows.push(row);
+      }
+
+      return rows;
+    }
+
+    function csvEscape(value) {
+      const stringValue = String(value ?? "");
+      if (/[",\n\r]/.test(stringValue)) {
+        return `"${stringValue.replaceAll('"', '""')}"`;
+      }
+      return stringValue;
+    }
+
+    function clampDay(value) {
+      if (!Number.isFinite(value)) {
+        return 1;
+      }
+      return Math.max(1, Math.min(31, Math.trunc(value)));
+    }
+
+    function createDateForMonthDay(month, day) {
+      const [yearText, monthText] = (month || currentMonthValue()).split("-");
+      const year = Number(yearText);
+      const monthNumber = Number(monthText);
+      const lastDay = new Date(year, monthNumber, 0).getDate();
+      const safeDay = String(Math.min(clampDay(day), lastDay)).padStart(2, "0");
+      return `${yearText}-${monthText}-${safeDay}`;
+    }
+
+    function clone(value) {
+      return JSON.parse(JSON.stringify(value));
+    }
+
+    function showStatus(message, isError = false) {
+      status.textContent = message;
+      status.classList.add("is-active");
+      status.style.background = isError ? "rgba(161, 50, 50, 0.12)" : "rgba(45, 124, 75, 0.12)";
+      status.style.color = isError ? "var(--danger)" : "var(--income)";
+    }
+
+    function todayAsInputValue() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const day = String(now.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+
+    function currentMonthValue() {
+      return todayAsInputValue().slice(0, 7);
+    }
+
+    function formatYen(value) {
+      return new Intl.NumberFormat("ja-JP", {
+        style: "currency",
+        currency: "JPY",
+        maximumFractionDigits: 0
+      }).format(value);
+    }
+
+    function formatDate(value) {
+      if (!value) {
+        return "未設定";
+      }
+
+      const [year, month, day] = value.split("-");
+      return `${year}年${Number(month)}月${Number(day)}日`;
+    }
+
+    function formatMonth(value) {
+      if (!value) {
+        return "未設定";
+      }
+
+      const [year, month] = value.split("-");
+      return `${year}年${Number(month)}月`;
+    }
+
+    function shorten(text, maxLength) {
+      if (text.length <= maxLength) {
+        return text;
+      }
+      return `${text.slice(0, maxLength)}...`;
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+  </script>
+</body>
+</html>
