@@ -1,9 +1,12 @@
-const CACHE_NAME = "kakeibo-pwa-v2";
+const CACHE_NAME = "kakeibo-pwa-v3";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./money-memo.html",
   "./manifest.json",
+  "./cloud-sync.css",
+  "./cloud-sync.js",
+  "./supabase-config.js",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/apple-touch-icon.png"

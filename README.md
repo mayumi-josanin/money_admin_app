@@ -19,3 +19,14 @@ HTML と JavaScript だけで動く家計簿アプリです。
 ## 公開
 
 GitHub Pages で公開できます。
+
+## 端末間同期
+
+Supabase を使ったクラウド同期に対応しています。
+
+1. Supabase でプロジェクトを作成する
+2. `supabase/schema.sql` を SQL Editor で実行する
+3. `supabase-config.js` の `enabled`, `url`, `anonKey` を設定する
+4. GitHub Pages へ push する
+
+同じメールアドレスでログインすれば、PC とスマホで同じデータを使えます。

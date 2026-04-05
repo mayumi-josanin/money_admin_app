@@ -9,6 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="お金管理">
   <link rel="manifest" href="./manifest.json">
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="./cloud-sync.css">
   <title>お金管理アプリ</title>
   <style>
     :root {
@@ -821,6 +822,12 @@
         </section>
 
         <section class="panel">
+          <h2>クラウド同期</h2>
+          <p class="panel-copy">同じメールアドレスでログインすると、パソコンとスマホで家計簿データを共有できます。</p>
+          <div id="budgetCloudSyncPanel"></div>
+        </section>
+
+        <section class="panel">
           <h2>固定費テンプレート</h2>
           <p class="panel-copy">毎月発生する支出や収入をテンプレート化して、選んだ月へまとめて追加できます。</p>
 
@@ -1086,6 +1093,9 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./supabase-config.js"></script>
+  <script src="./cloud-sync.js"></script>
   <script>
     const ENTRY_STORAGE_KEY = "advancedBudgetEntriesV1";
     const TEMPLATE_STORAGE_KEY = "advancedBudgetTemplatesV1";
@@ -1163,6 +1173,7 @@
     const closeMemoButton = document.getElementById("closeMemoButton");
     const installAppButton = document.getElementById("installAppButton");
     const installHint = document.getElementById("installHint");
+    const budgetCloudSyncPanel = document.getElementById("budgetCloudSyncPanel");
     const budgetTabButton = document.getElementById("budgetTabButton");
     const moneyMemoTabButton = document.getElementById("moneyMemoTabButton");
     const budgetWorkspace = document.getElementById("budgetWorkspace");
@@ -1186,6 +1197,16 @@
     render();
     setupPwa();
     switchWorkspace(getWorkspaceFromHash(), false);
+    if (window.MoneyCloudSync) {
+      window.MoneyCloudSync.initPanel({
+        appKey: "budget",
+        storageKeys: [ENTRY_STORAGE_KEY, TEMPLATE_STORAGE_KEY, BUDGET_STORAGE_KEY],
+        container: budgetCloudSyncPanel,
+        title: "家計簿データの同期",
+        description: "メールリンクでログインすると、他の端末でも同じ家計簿データを使えます。",
+        onRemoteApplied: () => window.location.reload()
+      });
+    }
 
     typeInput.addEventListener("change", () => updateCategorySelect(categoryInput, typeInput.value));
     templateTypeInput.addEventListener("change", () => updateCategorySelect(templateCategoryInput, templateTypeInput.value));
@@ -2173,8 +2194,11 @@
       }
     }
 
-    function saveEntries() {
+    function saveEntries(trackCloud = true) {
       localStorage.setItem(ENTRY_STORAGE_KEY, JSON.stringify(entries));
+      if (trackCloud && window.MoneyCloudSync) {
+        window.MoneyCloudSync.markLocalChange("budget");
+      }
     }
 
     function loadTemplates() {
@@ -2188,8 +2212,11 @@
       }
     }
 
-    function saveTemplates() {
+    function saveTemplates(trackCloud = true) {
       localStorage.setItem(TEMPLATE_STORAGE_KEY, JSON.stringify(templates));
+      if (trackCloud && window.MoneyCloudSync) {
+        window.MoneyCloudSync.markLocalChange("budget");
+      }
     }
 
     function loadBudgets() {
@@ -2203,8 +2230,11 @@
       }
     }
 
-    function saveBudgets() {
+    function saveBudgets(trackCloud = true) {
       localStorage.setItem(BUDGET_STORAGE_KEY, JSON.stringify(budgets));
+      if (trackCloud && window.MoneyCloudSync) {
+        window.MoneyCloudSync.markLocalChange("budget");
+      }
     }
 
     function normalizeEntry(entry) {

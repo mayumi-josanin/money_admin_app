@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="./cloud-sync.css">
   <title>貸し借りメモ</title>
   <style>
     :root {
@@ -724,6 +725,12 @@
 
         <div id="formStatus" class="form-status" aria-live="polite"></div>
 
+        <section class="subsection">
+          <h3>クラウド同期</h3>
+          <p class="panel-copy">同じメールアドレスでログインすると、パソコンとスマホで貸し借り記録を共有できます。</p>
+          <div id="moneyMemoCloudSyncPanel"></div>
+        </section>
+
         <form id="entryForm">
           <label>
             種別
@@ -883,6 +890,9 @@
     </main>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./supabase-config.js"></script>
+  <script src="./cloud-sync.js"></script>
   <script>
     const STORAGE_KEY = "moneyMemoEntriesV1";
     const NAME_HISTORY_KEY = "moneyMemoNameHistoryV1";
@@ -926,6 +936,7 @@
     const dismissUndoButton = document.getElementById("dismissUndoButton");
     const entryCountBadge = document.getElementById("entryCountBadge");
     const checkedCountBadge = document.getElementById("checkedCountBadge");
+    const moneyMemoCloudSyncPanel = document.getElementById("moneyMemoCloudSyncPanel");
 
     let entries = loadEntries();
     let nameHistory = mergeNameHistory(loadNameHistory(), entries.map((entry) => entry.name));
@@ -935,8 +946,18 @@
 
     dateInput.value = todayAsInputValue();
     paymentDateInput.value = todayAsInputValue();
-    saveNameHistory();
+    saveNameHistory(false);
     render();
+    if (window.MoneyCloudSync) {
+      window.MoneyCloudSync.initPanel({
+        appKey: "money-memo",
+        storageKeys: [STORAGE_KEY, NAME_HISTORY_KEY],
+        container: moneyMemoCloudSyncPanel,
+        title: "貸し借りデータの同期",
+        description: "メールリンクでログインすると、他の端末でも同じ貸し借り記録を使えます。",
+        onRemoteApplied: () => window.location.reload()
+      });
+    }
 
     form.addEventListener("submit", handleSubmit);
     paymentRecordForm.addEventListener("submit", handlePaymentSubmit);
@@ -1850,8 +1871,11 @@
       }
     }
 
-    function saveEntries() {
+    function saveEntries(trackCloud = true) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+      if (trackCloud && window.MoneyCloudSync) {
+        window.MoneyCloudSync.markLocalChange("money-memo");
+      }
     }
 
     function loadNameHistory() {
@@ -1865,8 +1889,11 @@
       }
     }
 
-    function saveNameHistory() {
+    function saveNameHistory(trackCloud = true) {
       localStorage.setItem(NAME_HISTORY_KEY, JSON.stringify(nameHistory));
+      if (trackCloud && window.MoneyCloudSync) {
+        window.MoneyCloudSync.markLocalChange("money-memo");
+      }
     }
 
     function showStatus(message, isError = false) {
