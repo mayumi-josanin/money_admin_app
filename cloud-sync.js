@@ -7,6 +7,8 @@
   }, window.SUPABASE_SYNC_CONFIG || {});
 
   const META_PREFIX = "cloudSyncMeta::";
+  const AUTO_SYNC_INTERVAL_MS = 15000;
+  const BACKGROUND_SYNC_DEBOUNCE_MS = 900;
   const instances = new Map();
   let authSubscriptionBound = false;
 
@@ -120,6 +122,7 @@
       this.session = null;
       this.user = null;
       this.uploadTimer = null;
+      this.syncInterval = null;
       this.elements = {};
     }
 
@@ -207,8 +210,26 @@
         }
       });
 
+      window.addEventListener("online", () => {
+        if (this.user) {
+          this.syncNow("online");
+        }
+      });
+
+      window.addEventListener("pagehide", () => {
+        if (this.user) {
+          this.flushPendingSync();
+        }
+      });
+
       document.addEventListener("visibilitychange", () => {
-        if (!document.hidden && this.user) {
+        if (!this.user) {
+          return;
+        }
+
+        if (document.hidden) {
+          this.flushPendingSync();
+        } else {
           this.syncNow("refresh");
         }
       });
@@ -290,10 +311,37 @@
       if (this.user) {
         this.elements.userEmail.textContent = `ログイン中: ${this.user.email || "不明"}`;
         this.renderMeta();
+        this.startAutoSyncLoop();
         this.syncNow("startup");
       } else {
+        this.stopAutoSyncLoop();
         this.elements.userEmail.textContent = "";
         this.elements.meta.innerHTML = "";
+      }
+    }
+
+    startAutoSyncLoop() {
+      this.stopAutoSyncLoop();
+      this.syncInterval = window.setInterval(() => {
+        if (!this.user || document.hidden || !navigator.onLine) {
+          return;
+        }
+
+        this.syncNow("refresh");
+      }, AUTO_SYNC_INTERVAL_MS);
+    }
+
+    stopAutoSyncLoop() {
+      if (this.syncInterval) {
+        window.clearInterval(this.syncInterval);
+        this.syncInterval = null;
+      }
+    }
+
+    flushPendingSync() {
+      const meta = readMeta(this.appKey);
+      if (meta.dirty) {
+        this.syncNow("background");
       }
     }
 
@@ -340,9 +388,11 @@
       return Array.isArray(data) && data.length > 0 ? data[0] : null;
     }
 
-    async pushSnapshot(message) {
+    async pushSnapshot(message, quiet = false) {
       if (!this.user) {
-        this.setStatus("同期するにはログインしてください。", "error");
+        if (!quiet) {
+          this.setStatus("同期するにはログインしてください。", "error");
+        }
         return;
       }
 
@@ -374,7 +424,11 @@
         dirty: false
       });
       this.renderMeta();
-      this.setStatus(message || "クラウドへ同期しました。", "success");
+      if (message) {
+        this.setStatus(message, "success");
+      } else if (!quiet) {
+        this.setStatus("クラウドへ同期しました。", "success");
+      }
     }
 
     applyRemoteSnapshot(remoteSnapshot, message) {
@@ -397,7 +451,9 @@
         dirty: false
       });
       this.renderMeta();
-      this.setStatus(message || "クラウドから読み込みました。", "success");
+      if (message) {
+        this.setStatus(message, "success");
+      }
 
       if (typeof this.onRemoteApplied === "function") {
         this.onRemoteApplied(remoteSnapshot);
@@ -405,8 +461,11 @@
     }
 
     async syncNow(mode) {
+      const quiet = ["startup", "refresh", "background", "online"].includes(mode);
       if (!this.user) {
-        this.setStatus("同期するにはログインしてください。", "error");
+        if (!quiet) {
+          this.setStatus("同期するにはログインしてください。", "error");
+        }
         return;
       }
 
@@ -415,7 +474,9 @@
       }
 
       this.isSyncing = true;
-      this.setBusy(true);
+      if (!quiet) {
+        this.setBusy(true);
+      }
 
       try {
         const remote = await this.fetchRemoteSnapshot();
@@ -426,9 +487,11 @@
 
         if (!remote) {
           if (local.hasData) {
-            await this.pushSnapshot("クラウドへ初回同期しました。");
+            await this.pushSnapshot(quiet ? "" : "クラウドへ初回同期しました。", quiet);
           } else {
-            this.setStatus("まだ同期するローカルデータがありません。", "muted");
+            if (!quiet) {
+              this.setStatus("まだ同期するローカルデータがありません。", "muted");
+            }
           }
           return;
         }
@@ -454,7 +517,7 @@
         }
 
         if (localTime > remoteTime + 1000 || meta.dirty || mode === "manual") {
-          await this.pushSnapshot(mode === "manual" ? "クラウドへ同期しました。" : "変更をクラウドへ反映しました。");
+          await this.pushSnapshot(mode === "manual" ? "クラウドへ同期しました。" : "", quiet);
           return;
         }
 
@@ -464,13 +527,17 @@
           dirty: false
         });
         this.renderMeta();
-        this.setStatus("同期済みです。", "success");
+        if (!quiet) {
+          this.setStatus("同期済みです。", "success");
+        }
       } catch (error) {
         console.error(error);
         this.setStatus(error.message || "クラウド同期に失敗しました。", "error");
       } finally {
         this.isSyncing = false;
-        this.setBusy(false);
+        if (!quiet) {
+          this.setBusy(false);
+        }
       }
     }
 
@@ -494,7 +561,7 @@
       window.clearTimeout(this.uploadTimer);
       this.uploadTimer = window.setTimeout(() => {
         this.syncNow("background");
-      }, 900);
+      }, BACKGROUND_SYNC_DEBOUNCE_MS);
     }
 
     renderMeta() {
