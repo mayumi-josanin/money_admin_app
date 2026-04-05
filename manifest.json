@@ -1,7 +1,7 @@
 {
-  "name": "家計簿アプリ",
-  "short_name": "家計簿",
-  "description": "収入・支出、予算、月別集計、CSV入出力に対応した家計簿アプリです。",
+  "name": "お金管理アプリ",
+  "short_name": "お金管理",
+  "description": "家計簿と貸し借り管理をひとつにまとめたお金管理アプリです。",
   "lang": "ja",
   "start_url": "./index.html",
   "scope": "./",
