@@ -755,7 +755,9 @@
   </style>
 </head>
 <body>
-  <div class="app">
+  <div id="authGate"></div>
+
+  <div id="appShell" class="app" hidden>
     <section class="hero">
       <span class="eyebrow">Money Manager</span>
       <h1>家計簿と貸し借りを<br>ひとつにまとめたお金管理アプリ</h1>
@@ -766,6 +768,13 @@
           <span id="installHint" class="install-note">この画面をブラウザで開いたあと、ホーム画面やDockへ追加するとアプリのように使えます。</span>
         </div>
         <button type="button" id="installAppButton" class="primary" hidden>アプリをインストール</button>
+        <div id="accountPanel" class="auth-account-card" hidden>
+          <strong>ログイン中</strong>
+          <span id="accountEmail" class="auth-account-email"></span>
+          <div class="toolbar-actions">
+            <button type="button" id="accountLogoutButton" class="secondary">ログアウト</button>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -1173,6 +1182,11 @@
     const closeMemoButton = document.getElementById("closeMemoButton");
     const installAppButton = document.getElementById("installAppButton");
     const installHint = document.getElementById("installHint");
+    const authGate = document.getElementById("authGate");
+    const appShell = document.getElementById("appShell");
+    const accountPanel = document.getElementById("accountPanel");
+    const accountEmail = document.getElementById("accountEmail");
+    const accountLogoutButton = document.getElementById("accountLogoutButton");
     const budgetCloudSyncPanel = document.getElementById("budgetCloudSyncPanel");
     const budgetTabButton = document.getElementById("budgetTabButton");
     const moneyMemoTabButton = document.getElementById("moneyMemoTabButton");
@@ -1198,6 +1212,15 @@
     setupPwa();
     switchWorkspace(getWorkspaceFromHash(), false);
     if (window.MoneyCloudSync) {
+      window.MoneyCloudSync.initAuthGate({
+        gateContainer: authGate,
+        appShell,
+        title: "お金管理アプリにログイン",
+        description: "PC とスマホで同じメールアドレスを使ってログインすると、家計簿と貸し借り記録を同じ内容で使えます。",
+        accountPanel,
+        accountEmail,
+        accountLogoutButton
+      });
       window.MoneyCloudSync.initPanel({
         appKey: "budget",
         storageKeys: [ENTRY_STORAGE_KEY, TEMPLATE_STORAGE_KEY, BUDGET_STORAGE_KEY],

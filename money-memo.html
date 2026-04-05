@@ -708,7 +708,9 @@
   </style>
 </head>
 <body>
-  <div class="shell">
+  <div id="authGate"></div>
+
+  <div id="appShell" class="shell" hidden>
     <section class="hero">
       <span class="eyebrow">Money Memo</span>
       <h1>貸した・借りたお金を<br>見やすく残すメモアプリ</h1>
@@ -716,6 +718,15 @@
         名前、金額、日付、メモを記録して一覧で管理できます。
         編集と削除にも対応し、入力内容はこのブラウザに保存されます。
       </p>
+      <div class="actions" style="margin-top: 18px;">
+        <div id="accountPanel" class="auth-account-card" hidden style="width: 100%;">
+          <strong>ログイン中</strong>
+          <span id="accountEmail" class="auth-account-email"></span>
+          <div class="actions">
+            <button type="button" id="accountLogoutButton" class="secondary">ログアウト</button>
+          </div>
+        </div>
+      </div>
     </section>
 
     <main class="layout">
@@ -936,6 +947,11 @@
     const dismissUndoButton = document.getElementById("dismissUndoButton");
     const entryCountBadge = document.getElementById("entryCountBadge");
     const checkedCountBadge = document.getElementById("checkedCountBadge");
+    const authGate = document.getElementById("authGate");
+    const appShell = document.getElementById("appShell");
+    const accountPanel = document.getElementById("accountPanel");
+    const accountEmail = document.getElementById("accountEmail");
+    const accountLogoutButton = document.getElementById("accountLogoutButton");
     const moneyMemoCloudSyncPanel = document.getElementById("moneyMemoCloudSyncPanel");
 
     let entries = loadEntries();
@@ -949,6 +965,15 @@
     saveNameHistory(false);
     render();
     if (window.MoneyCloudSync) {
+      window.MoneyCloudSync.initAuthGate({
+        gateContainer: authGate,
+        appShell,
+        title: "貸し借り管理にログイン",
+        description: "PC とスマホで同じメールアドレスを使ってログインすると、貸した・借りた記録を同じ内容で使えます。",
+        accountPanel,
+        accountEmail,
+        accountLogoutButton
+      });
       window.MoneyCloudSync.initPanel({
         appKey: "money-memo",
         storageKeys: [STORAGE_KEY, NAME_HISTORY_KEY],

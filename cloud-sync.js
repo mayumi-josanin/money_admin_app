@@ -6,6 +6,7 @@
     redirectUrl: ""
   }, window.SUPABASE_SYNC_CONFIG || {});
 
+  const LAST_EMAIL_KEY = "moneyManagerLastAuthEmail";
   const META_PREFIX = "cloudSyncMeta::";
   const AUTO_SYNC_INTERVAL_MS = 15000;
   const BACKGROUND_SYNC_DEBOUNCE_MS = 900;
@@ -108,6 +109,190 @@
 
   function buildRedirectUrl() {
     return CONFIG.redirectUrl || window.location.href.split("#")[0];
+  }
+
+  function readLastEmail() {
+    return localStorage.getItem(LAST_EMAIL_KEY) || "";
+  }
+
+  function writeLastEmail(email) {
+    localStorage.setItem(LAST_EMAIL_KEY, email);
+  }
+
+  class AuthGateController {
+    constructor(options) {
+      this.gateContainer = options.gateContainer;
+      this.appShell = options.appShell;
+      this.title = options.title;
+      this.description = options.description;
+      this.accountPanel = options.accountPanel || null;
+      this.accountEmail = options.accountEmail || null;
+      this.accountLogoutButton = options.accountLogoutButton || null;
+      this.client = null;
+      this.elements = {};
+      this.user = null;
+    }
+
+    async init() {
+      if (!this.gateContainer || !this.appShell) {
+        return;
+      }
+
+      this.renderGate();
+
+      if (!isConfigured()) {
+        this.gateContainer.hidden = true;
+        this.appShell.hidden = false;
+        this.updateAccount(null);
+        return;
+      }
+
+      this.client = getClient();
+      if (!this.client) {
+        this.setStatus("ログイン画面の初期化に失敗しました。", "error");
+        return;
+      }
+
+      this.bindEvents();
+      const { data, error } = await this.client.auth.getSession();
+
+      if (error) {
+        console.error(error);
+        this.setStatus("ログイン状態の確認に失敗しました。", "error");
+        return;
+      }
+
+      this.applySession(data.session);
+      this.client.auth.onAuthStateChange((_event, session) => {
+        this.applySession(session);
+      });
+    }
+
+    renderGate() {
+      this.gateContainer.innerHTML = `
+        <section class="auth-gate-screen">
+          <div class="auth-gate-card">
+            <span class="auth-gate-eyebrow">Secure Login</span>
+            <h2>${escapeHtml(this.title)}</h2>
+            <p class="auth-gate-copy">${escapeHtml(this.description)}</p>
+            <div id="auth-gate-status" class="auth-gate-status" data-tone="muted">ログイン状態を確認しています。</div>
+            <div class="auth-gate-form">
+              <label>
+                同じ端末で使うメールアドレス
+                <input id="auth-gate-email" type="email" placeholder="例: you@example.com" autocomplete="email">
+              </label>
+              <div class="cloud-sync-actions">
+                <button type="button" id="auth-gate-login" class="primary">ログインリンクを送る</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      `;
+
+      this.elements.status = document.getElementById("auth-gate-status");
+      this.elements.email = document.getElementById("auth-gate-email");
+      this.elements.login = document.getElementById("auth-gate-login");
+      this.elements.email.value = readLastEmail();
+    }
+
+    bindEvents() {
+      this.elements.login.addEventListener("click", () => this.sendMagicLink());
+      if (this.accountLogoutButton) {
+        this.accountLogoutButton.addEventListener("click", () => this.signOut());
+      }
+    }
+
+    async sendMagicLink() {
+      const email = this.elements.email.value.trim();
+      if (!email) {
+        this.setStatus("メールアドレスを入力してください。", "error");
+        return;
+      }
+
+      writeLastEmail(email);
+      this.setBusy(true);
+      this.setStatus("ログイン用メールを送信しています。", "muted");
+
+      const { error } = await this.client.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: buildRedirectUrl()
+        }
+      });
+
+      this.setBusy(false);
+
+      if (error) {
+        console.error(error);
+        this.setStatus(error.message || "ログインリンクの送信に失敗しました。", "error");
+        return;
+      }
+
+      this.setStatus("メールにログインリンクを送りました。PC とスマホで同じメールアドレスを使ってください。", "success");
+    }
+
+    async signOut() {
+      if (!this.client) {
+        return;
+      }
+
+      this.setBusy(true);
+      const { error } = await this.client.auth.signOut();
+      this.setBusy(false);
+
+      if (error) {
+        console.error(error);
+        this.setStatus(error.message || "ログアウトに失敗しました。", "error");
+        return;
+      }
+    }
+
+    applySession(session) {
+      this.user = session ? session.user : null;
+      this.updateAccount(this.user);
+
+      if (this.user) {
+        if (this.user.email) {
+          writeLastEmail(this.user.email);
+        }
+        this.gateContainer.hidden = true;
+        this.appShell.hidden = false;
+        this.setStatus("ログイン済みです。", "success");
+      } else {
+        this.gateContainer.hidden = false;
+        this.appShell.hidden = true;
+        this.elements.email.value = readLastEmail();
+        this.setStatus("PC とスマホで同じメールアドレスを使ってログインしてください。", "muted");
+      }
+    }
+
+    updateAccount(user) {
+      if (!this.accountPanel || !this.accountEmail) {
+        return;
+      }
+
+      if (user) {
+        this.accountPanel.hidden = false;
+        this.accountEmail.textContent = user.email || "メールアドレス不明";
+      } else {
+        this.accountPanel.hidden = true;
+        this.accountEmail.textContent = "";
+      }
+    }
+
+    setBusy(isBusy) {
+      if (this.elements.login) {
+        this.elements.login.disabled = isBusy;
+      }
+      if (this.accountLogoutButton) {
+        this.accountLogoutButton.disabled = isBusy;
+      }
+    }
+
+    setStatus(message, tone) {
+      this.elements.status.textContent = message;
+      this.elements.status.dataset.tone = tone || "muted";
+    }
   }
 
   class SyncController {
@@ -601,6 +786,10 @@
   }
 
   window.MoneyCloudSync = {
+    initAuthGate(options) {
+      const controller = new AuthGateController(options);
+      return controller.init();
+    },
     initPanel(options) {
       const controller = new SyncController(options);
       instances.set(options.appKey, controller);
