@@ -131,6 +131,7 @@
       this.client = null;
       this.elements = {};
       this.user = null;
+      this.step = "email"; // "email" or "verify"
     }
 
     async init() {
@@ -164,11 +165,16 @@
 
       this.applySession(data.session);
       this.client.auth.onAuthStateChange((_event, session) => {
+        if (_event === "SIGNED_IN") {
+          this.step = "email";
+        }
         this.applySession(session);
       });
     }
 
     renderGate() {
+      const isVerify = this.step === "verify";
+
       this.gateContainer.innerHTML = `
         <section class="auth-gate-screen">
           <div class="auth-gate-card">
@@ -176,13 +182,25 @@
             <h2>${escapeHtml(this.title)}</h2>
             <p class="auth-gate-copy">${escapeHtml(this.description)}</p>
             <div id="auth-gate-status" class="auth-gate-status" data-tone="muted">ログイン状態を確認しています。</div>
-            <div class="auth-gate-form">
+
+            <div class="auth-gate-form" ${isVerify ? "hidden" : ""}>
               <label>
                 同じ端末で使うメールアドレス
                 <input id="auth-gate-email" type="email" placeholder="例: you@example.com" autocomplete="email">
               </label>
               <div class="cloud-sync-actions">
-                <button type="button" id="auth-gate-login" class="primary">ログインリンクを送る</button>
+                <button type="button" id="auth-gate-login" class="primary">ログインコードを送る</button>
+              </div>
+            </div>
+
+            <div class="auth-gate-form" ${!isVerify ? "hidden" : ""}>
+              <label>
+                メールで届いた6桁のコード
+                <input id="auth-gate-otp" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="000000" autocomplete="one-time-code" style="font-size: 2rem; letter-spacing: 0.5em; text-align: center; font-weight: 900;">
+              </label>
+              <div class="cloud-sync-actions">
+                <button type="button" id="auth-gate-verify" class="primary">ログイン</button>
+                <button type="button" id="auth-gate-back" class="secondary">メールアドレスを修正</button>
               </div>
             </div>
           </div>
@@ -192,17 +210,34 @@
       this.elements.status = document.getElementById("auth-gate-status");
       this.elements.email = document.getElementById("auth-gate-email");
       this.elements.login = document.getElementById("auth-gate-login");
+      this.elements.otp = document.getElementById("auth-gate-otp");
+      this.elements.verify = document.getElementById("auth-gate-verify");
+      this.elements.back = document.getElementById("auth-gate-back");
+
       this.elements.email.value = readLastEmail();
+      this.bindEvents();
     }
 
     bindEvents() {
-      this.elements.login.addEventListener("click", () => this.sendMagicLink());
+      if (this.elements.login) {
+        this.elements.login.addEventListener("click", () => this.sendOtp());
+      }
+      if (this.elements.verify) {
+        this.elements.verify.addEventListener("click", () => this.verifyOtp());
+      }
+      if (this.elements.back) {
+        this.elements.back.addEventListener("click", () => {
+          this.step = "email";
+          this.renderGate();
+          this.setStatus("PC とスマホで同じメールアドレスを使ってログインしてください。", "muted");
+        });
+      }
       if (this.accountLogoutButton) {
         this.accountLogoutButton.addEventListener("click", () => this.signOut());
       }
     }
 
-    async sendMagicLink() {
+    async sendOtp() {
       const email = this.elements.email.value.trim();
       if (!email) {
         this.setStatus("メールアドレスを入力してください。", "error");
@@ -211,24 +246,53 @@
 
       writeLastEmail(email);
       this.setBusy(true);
-      this.setStatus("ログイン用メールを送信しています。", "muted");
+      this.setStatus("ログインコードを送信しています。", "muted");
 
       const { error } = await this.client.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: buildRedirectUrl()
-        }
+        email
       });
 
       this.setBusy(false);
 
       if (error) {
         console.error(error);
-        this.setStatus(error.message || "ログインリンクの送信に失敗しました。", "error");
+        this.setStatus(error.message || "ログインコードの送信に失敗しました。", "error");
         return;
       }
 
-      this.setStatus("メールにログインリンクを送りました。PC とスマホで同じメールアドレスを使ってください。", "success");
+      this.step = "verify";
+      this.renderGate();
+      this.setStatus("メールに 6 桁のログインコードを送りました。コードを入力してください。", "success");
+      if (this.elements.otp) this.elements.otp.focus();
+    }
+
+    async verifyOtp() {
+      const email = readLastEmail();
+      const token = this.elements.otp.value.trim();
+
+      if (!token || token.length < 6) {
+        this.setStatus("6 桁のコードを入力してください。", "error");
+        return;
+      }
+
+      this.setBusy(true);
+      this.setStatus("ログインしています...", "muted");
+
+      const { data, error } = await this.client.auth.verifyOtp({
+        email,
+        token,
+        type: "email"
+      });
+
+      this.setBusy(false);
+
+      if (error) {
+        console.error(error);
+        this.setStatus("認証に失敗しました。コードが正しいか確認してください。", "error");
+        return;
+      }
+
+      this.applySession(data.session);
     }
 
     async signOut() {
@@ -281,12 +345,10 @@
     }
 
     setBusy(isBusy) {
-      if (this.elements.login) {
-        this.elements.login.disabled = isBusy;
-      }
-      if (this.accountLogoutButton) {
-        this.accountLogoutButton.disabled = isBusy;
-      }
+      const buttons = [this.elements.login, this.elements.verify, this.elements.back, this.accountLogoutButton];
+      buttons.forEach(btn => {
+        if (btn) btn.disabled = isBusy;
+      });
     }
 
     setStatus(message, tone) {
@@ -309,6 +371,7 @@
       this.uploadTimer = null;
       this.syncInterval = null;
       this.elements = {};
+      this.step = "email";
     }
 
     async init() {
@@ -342,13 +405,23 @@
             <p class="cloud-sync-copy">${escapeHtml(this.description)}</p>
           </div>
           <div id="${this.appKey}-cloud-sync-status" class="cloud-sync-status" data-tone="muted">同期の準備中です。</div>
-          <div id="${this.appKey}-cloud-sync-guest" class="cloud-sync-row">
+          <div id="${this.appKey}-cloud-sync-guest" class="cloud-sync-row" ${this.step === "verify" ? "hidden" : ""}>
             <label>
               同期に使うメールアドレス
               <input id="${this.appKey}-cloud-sync-email" type="email" placeholder="例: you@example.com" autocomplete="email">
             </label>
             <div class="cloud-sync-actions">
-              <button type="button" id="${this.appKey}-cloud-sync-login" class="primary">ログインリンクを送る</button>
+              <button type="button" id="${this.appKey}-cloud-sync-login" class="primary">コードを送る</button>
+            </div>
+          </div>
+          <div id="${this.appKey}-cloud-sync-verify" class="cloud-sync-row" ${this.step !== "verify" ? "hidden" : ""}>
+            <label>
+              6桁のコード
+              <input id="${this.appKey}-cloud-sync-otp" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="000000" autocomplete="one-time-code">
+            </label>
+            <div class="cloud-sync-actions">
+              <button type="button" id="${this.appKey}-cloud-sync-do-verify" class="primary">ログイン</button>
+              <button type="button" id="${this.appKey}-cloud-sync-back" class="secondary">戻る</button>
             </div>
           </div>
           <div id="${this.appKey}-cloud-sync-user" hidden>
@@ -369,6 +442,10 @@
       this.elements.guest = document.getElementById(`${this.appKey}-cloud-sync-guest`);
       this.elements.email = document.getElementById(`${this.appKey}-cloud-sync-email`);
       this.elements.login = document.getElementById(`${this.appKey}-cloud-sync-login`);
+      this.elements.verifyPanel = document.getElementById(`${this.appKey}-cloud-sync-verify`);
+      this.elements.otp = document.getElementById(`${this.appKey}-cloud-sync-otp`);
+      this.elements.doVerify = document.getElementById(`${this.appKey}-cloud-sync-do-verify`);
+      this.elements.back = document.getElementById(`${this.appKey}-cloud-sync-back`);
       this.elements.userPanel = document.getElementById(`${this.appKey}-cloud-sync-user`);
       this.elements.userEmail = document.getElementById(`${this.appKey}-cloud-sync-user-email`);
       this.elements.logout = document.getElementById(`${this.appKey}-cloud-sync-logout`);
@@ -378,7 +455,15 @@
     }
 
     bindEvents() {
-      this.elements.login.addEventListener("click", () => this.sendMagicLink());
+      if (this.elements.login) this.elements.login.addEventListener("click", () => this.sendOtp());
+      if (this.elements.doVerify) this.elements.doVerify.addEventListener("click", () => this.verifyOtp());
+      if (this.elements.back) {
+        this.elements.back.addEventListener("click", () => {
+          this.step = "email";
+          this.renderShell();
+          this.setStatus("同期にはログインが必要です。", "muted");
+        });
+      }
       this.elements.logout.addEventListener("click", () => this.signOut());
       this.elements.sync.addEventListener("click", () => this.syncNow("manual"));
       this.elements.pull.addEventListener("click", () => this.pullRemote());
@@ -444,32 +529,62 @@
       this.handleSessionChange(data.session);
     }
 
-    async sendMagicLink() {
+    async sendOtp() {
       const email = this.elements.email.value.trim();
       if (!email) {
         this.setStatus("メールアドレスを入力してください。", "error");
         return;
       }
 
+      writeLastEmail(email);
       this.setBusy(true);
-      this.setStatus("ログイン用メールを送信しています。", "muted");
+      this.setStatus("ログインコードを送信しています。", "muted");
 
       const { error } = await this.client.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: buildRedirectUrl()
-        }
+        email
       });
 
       this.setBusy(false);
 
       if (error) {
         console.error(error);
-        this.setStatus(error.message || "ログインリンクの送信に失敗しました。", "error");
+        this.setStatus(error.message || "ログインコードの送信に失敗しました。", "error");
         return;
       }
 
-      this.setStatus("メールにログインリンクを送りました。届いたリンクを開いてください。", "success");
+      this.step = "verify";
+      this.renderShell();
+      this.setStatus("メールに届いた 6 桁のコードを入力してください。", "success");
+      if (this.elements.otp) this.elements.otp.focus();
+    }
+
+    async verifyOtp() {
+      const email = readLastEmail();
+      const token = this.elements.otp.value.trim();
+
+      if (!token || token.length < 6) {
+        this.setStatus("6 桁のコードを入力してください。", "error");
+        return;
+      }
+
+      this.setBusy(true);
+      this.setStatus("ログインしています...", "muted");
+
+      const { data, error } = await this.client.auth.verifyOtp({
+        email,
+        token,
+        type: "email"
+      });
+
+      this.setBusy(false);
+
+      if (error) {
+        console.error(error);
+        this.setStatus("認証に失敗しました。コードを確認してください。", "error");
+        return;
+      }
+
+      this.handleSessionChange(data.session);
     }
 
     async signOut() {
@@ -760,6 +875,8 @@
     setBusy(isBusy) {
       [
         this.elements.login,
+        this.elements.doVerify,
+        this.elements.back,
         this.elements.logout,
         this.elements.sync,
         this.elements.pull
