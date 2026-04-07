@@ -6,8 +6,10 @@
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "background_color": "#f9f5ed",
   "theme_color": "#8a4a2d",
+  "categories": ["finance", "productivity"],
   "icons": [
     {
       "src": "./icons/icon-192.png",
@@ -24,6 +26,22 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "家計簿を記録",
+      "short_name": "家計簿",
+      "description": "家計簿の入力画面を開きます",
+      "url": "/#budget",
+      "icons": [{ "src": "./icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "貸し借りを記録",
+      "short_name": "貸し借り",
+      "description": "貸し借り管理の入力画面を開きます",
+      "url": "/#money-memo",
+      "icons": [{ "src": "./icons/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }

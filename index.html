@@ -7,6 +7,13 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="お金管理">
+  <!-- iOS Splash Screens -->
+  <link rel="apple-touch-startup-image" href="./icons/icon-2048.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)">
+  <link rel="apple-touch-startup-image" href="./icons/icon-512.png" media="(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2)">
+  <link rel="apple-touch-startup-image" href="./icons/icon-512.png" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2)">
+  <link rel="apple-touch-startup-image" href="./icons/icon-512.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)">
+  <link rel="apple-touch-startup-image" href="./icons/icon-512.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)">
+
   <link rel="manifest" href="./manifest.json">
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
   <link rel="stylesheet" href="./cloud-sync.css">
@@ -43,6 +50,19 @@
         radial-gradient(circle at bottom right, rgba(124, 169, 114, 0.18), transparent 26%),
         linear-gradient(160deg, #f9f5ed 0%, #f0e8db 54%, #f8f2e8 100%);
       padding: 28px 16px 44px;
+      overscroll-behavior-y: none; /* Disable pull-to-refresh */
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Standalone mode refinements */
+    @media (display-mode: standalone), (display-mode: fullscreen) {
+      body {
+        padding-top: env(safe-area-inset-top, 20px);
+        padding-bottom: env(safe-area-inset-bottom, 30px);
+      }
+      .hero {
+        display: none !important; /* Hide landing hero in app mode */
+      }
     }
 
     .app {
@@ -110,6 +130,63 @@
       color: var(--muted);
       font-size: 0.9rem;
       line-height: 1.6;
+    }
+
+    /* iOS Install Guide */
+    .ios-guide {
+      position: fixed;
+      left: 20px;
+      right: 20px;
+      bottom: 20px;
+      padding: 20px;
+      border-radius: 24px;
+      background: rgba(255, 252, 247, 0.98);
+      border: 1px solid rgba(66, 49, 32, 0.12);
+      box-shadow: 0 30px 80px rgba(18, 14, 11, 0.22);
+      z-index: 100;
+      display: grid;
+      gap: 16px;
+      animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(100%); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .ios-guide-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .ios-guide-steps {
+      display: grid;
+      gap: 12px;
+      font-size: 0.94rem;
+    }
+
+    .ios-step {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .ios-icon-box {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(138, 74, 45, 0.1);
+      border-radius: 10px;
+      flex-shrink: 0;
+    }
+
+    .ios-icon-svg {
+      width: 20px;
+      height: 20px;
+      fill: var(--accent);
     }
 
     .app-switcher {
@@ -2166,18 +2243,29 @@
     }
 
     async function setupPwa() {
-      if (window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone) {
-        installHint.textContent = "アプリとして起動中です。";
-      } else if (location.protocol === "file:") {
-        installHint.textContent = "アプリとして使うにはブラウザで localhost から開いてください。";
-      }
+      const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
+      const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
-      if (!("serviceWorker" in navigator)) {
-        installHint.textContent = "このブラウザではアプリ化機能が一部使えません。";
+      if (isStandalone) {
+        installHint.textContent = "アプリとして起動中です。";
+        const hero = document.querySelector(".hero");
+        if (hero) hero.hidden = true;
         return;
       }
 
       if (location.protocol === "file:") {
+        installHint.textContent = "アプリとして使うにはブラウザで localhost から開いてください。";
+        return;
+      }
+
+      // Show iOS guide if on iOS and not standalone
+      if (isIos) {
+        document.getElementById("iosGuide").hidden = false;
+        installHint.textContent = "共有メニューからホーム画面に追加すると便利です。";
+      }
+
+      if (!("serviceWorker" in navigator)) {
+        installHint.textContent = "このブラウザではアプリ化機能が一部使えません。";
         return;
       }
 
@@ -2499,5 +2587,29 @@
         .replaceAll("'", "&#39;");
     }
   </script>
+  <div id="iosGuide" class="ios-guide" hidden>
+    <div class="ios-guide-header">
+      <strong>アプリをインストール</strong>
+      <button type="button" class="small-button" onclick="this.parentElement.parentElement.hidden = true">閉じる</button>
+    </div>
+    <div class="ios-guide-steps">
+      <div class="ios-step">
+        <div class="ios-icon-box">
+          <svg class="ios-icon-svg" viewBox="0 0 24 24">
+            <path d="M12 2L12 15M12 2L8 6M12 2L16 6M5 11V20C5 21.1 5.9 22 7 22H17C18.1 22 19 21.1 19 20V11" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </div>
+        <span>ブラウザの「共有パネル」を開きます</span>
+      </div>
+      <div class="ios-step">
+        <div class="ios-icon-box">
+          <svg class="ios-icon-svg" viewBox="0 0 24 24">
+            <path d="M19 13H13V19H11V13H5V11H11V5H13V11H19V13Z" />
+          </svg>
+        </div>
+        <span>「ホーム画面に追加」をタップします</span>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
